@@ -61,7 +61,7 @@ FUNCTION gaborFilterBank,u,v,m,n
     beta = fu/eta;
     FOR j = 0,v-1 DO BEGIN
       tetav = ((j-1)/v)*!pi;
-      gFilter = make_array(m,n,VALUE=0);
+      gFilter = make_array(m,n,VALUE=0,/double);
       FOR x = 0,m-1 DO BEGIN
         FOR y = 0,n-1 DO BEGIN
           xprime = (x-((m+1)/2))*COS(tetav)+(y-((n+1)/2))*SIN(tetav);
@@ -98,23 +98,26 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   m = imgsize[2]
   s = (n*m)/(d1*d2);
   l = s*u*v;
-  featureVector = make_array(l,1,value=0);
+  featureVector = make_array(l,1,value=0,/double);
   c = 0;
-  FOR i = 1,u DO BEGIN
-    FOR j = 1,v DO BEGIN
+  FOR i = 0,u-1 DO BEGIN
+    FOR j = 0,v-1 DO BEGIN
       c = c+1;
-      gaborAbs = ABS(*gaborResult[i,j]);
+      gaborAbsptr = *(gaborResult[i,j])
+      gaborAbs = ABS(gaborAbsptr);
 ;      gaborAbs = downsample(gaborAbs,d1);
 ;      gaborAbs = downsample(TRANSPOSE(gaborAbs),d2);
-      gaborAbs = downsample(gaborAbs,d1,d2)
-      gaborAbs = REFORM(TRANSPOSE(gaborAbs),[],1);
+      gaborAbs = congrid(gaborAbs,300,300)
+      gsize = size(gaborAbs)
+      gaborAbs = REFORM(gaborAbs,gsize[1]*gsize[2],1);
 
       ; Normalized to zero mean AND unit variance. (if NOT applicable, please comment this line)
-      gaborAbs = (gaborAbs-mean(gaborAbs))/std(gaborAbs,1);
-      featureMap[i,j] = REFORM(TRANSPOSE(gaborAbs),n,m);
-      featureVector(((c-1)*s+1):(c*s)) = gaborAbs;
+      gaborAbs = (gaborAbs-mean(gaborAbs))/stddev(gaborAbs);
+      *(featureMap[i,j]) = REFORM(TRANSPOSE(gaborAbs),n,m);
+      featureVector[((c-1)*s):(c*s-1)] = gaborAbs;
     ENDFOR
   ENDFOR
+  featureMap = ptr_new(featureMap);
   return,[featureMap,featureVector]
 END
 ;+
