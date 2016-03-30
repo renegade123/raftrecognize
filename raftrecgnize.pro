@@ -17,14 +17,14 @@ PRO raftrecgnize
   gaborArray = gaborFilterBank(5,8,39,39)
   ;提取Gabor特征
   feature = gaborFeatures(img,gaborArray,1,1)
-  featureMap = feature[1]
-  featureVector = feature[2]
+  featureMap = *feature[0]
+  featureVector = *feature[1]
   ;将cell存储特征转变为矩阵格式
-  test_gabor=MAKE_ARRAY(row,col,40);
+  test_gabor=MAKE_ARRAY(irow,icol,40);
   t=0;
   FOR i=0,4 DO BEGIN
     FOR j=0,7 DO BEGIN
-      test_gabor(*,*,t)=*(featureMap[i,j]);
+      test_gabor[*,*,t]=*(featureMap[i,j]);
       t=t+1;
     ENDFOR
   ENDFOR
@@ -56,17 +56,20 @@ FUNCTION gaborFilterBank,u,v,m,n
   eta = SQRT(2);
 
   FOR i = 0,u-1 DO BEGIN
-    fu = fmax/((SQRT(2))^(i-1));
+    fu = fmax/((SQRT(2))^i);
     alpha = fu/gama;
     beta = fu/eta;
     FOR j = 0,v-1 DO BEGIN
-      tetav = ((j-1)/v)*!pi;
-      gFilter = make_array(m,n,VALUE=0,/double);
+      tetav = (j/v)*!pi;
+      gFilterReal = make_array(m,n,VALUE=0,/double);
+      gFilterImaginary = make_array(m,n,VALUE=0,/double);
       FOR x = 0,m-1 DO BEGIN
         FOR y = 0,n-1 DO BEGIN
-          xprime = (x-((m+1)/2))*COS(tetav)+(y-((n+1)/2))*SIN(tetav);
-          yprime = -(x-((m+1)/2))*SIN(tetav)+(y-((n+1)/2))*COS(tetav);
-          gFilter[x,y] = (fu^2/(!pi*gama*eta))*EXP(-((alpha^2)*(xprime^2)+(beta^2)*(yprime^2)))*EXP(i*2*!pi*fu*xprime);
+          xprime = (x+1-((m+1)/2))*COS(tetav)+(y+1-((n+1)/2))*SIN(tetav);
+          yprime = -(x+1-((m+1)/2))*SIN(tetav)+(y+1-((n+1)/2))*COS(tetav);
+          gFilterReal[x,y] = (fu^2/(!pi*gama*eta))*EXP(-((alpha^2)*(xprime^2)+(beta^2)*(yprime^2)))*EXP((i+1)*2*!pi*fu*xprime);
+          gFilterImaginary[x,y] = 
+          gFilter = complex(gFilterReal,gFilterImaginary)
         ENDFOR
       ENDFOR
       *(gaborArray[i,j]) = gFilter;
@@ -117,8 +120,9 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
       featureVector[((c-1)*s):(c*s-1)] = gaborAbs;
     ENDFOR
   ENDFOR
-  featureMap = ptr_new(featureMap);
-  return,[featureMap,featureVector]
+  featureMapPTR = ptr_new(featureMap);
+  featureVectorPTR = ptr_new(featureVector);
+  return,[featureMapPTR,featureVectorPTR]
 END
 ;+
 ;NAME:
