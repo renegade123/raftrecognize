@@ -42,7 +42,7 @@ PRO raftrecgnize
   ;tempGaborX = transpose(GaborX)
   ;tempGlcmX =  transpose(GlcmX)
   TestX=[GaborX,GlcmX];
-  TestX=transpose(TestX);%Gabor特征、GLCM特征合并到一个矩阵
+  TestX=TRANSPOSE(TestX);%Gabor特征、GLCM特征合并到一个矩阵
   TestX=min_max_norm(0,1,TestX);%特征归一化
 END
 ;TODO gabor滤波器
@@ -267,7 +267,7 @@ END
 FUNCTION min_max_norm,min_value,max_value,x
   ;%normalize each column OF the input matrix x using MIN MAX normalization
   ;%min_value is the lower bound after normalization AND max_value is the upper bound after normalization
-  IF max_value LE min_value then begin
+  IF max_value LE min_value THEN BEGIN
     ;DIALOG_MESSAGE('max value can"t be lower than min value');
   END
   size_x=SIZE(x);
@@ -276,7 +276,7 @@ FUNCTION min_max_norm,min_value,max_value,x
     max_col=MAX(x[*,col]);
     min_col=MIN(x[*,col]);
     FOR line=0,size_x[1]-1 DO BEGIN
-      IF max_col eq min_col THEN BEGIN
+      IF max_col EQ min_col THEN BEGIN
         y[line,col]=(max_value+min_value)/2;
       ENDIF ELSE BEGIN
         y[line,col]=((x[line,col]-min_col)/(max_col-min_col))*(max_value-min_value)+min_value;
