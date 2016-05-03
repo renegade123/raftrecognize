@@ -3,7 +3,11 @@ PRO raftrecgnize
   originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
   HELP,originimg
   img = originimg[501:800,501:800]
+  ;tvscl,img
   im=image(img, TITLE='Raft',/OVERPLOT)
+  groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  ;groundall=groundall(1:100,1:100);
+  groundall=groundall(501:800,501:800);
   ;下采样窗大小
   winsize=3
   ;类别两类
@@ -28,6 +32,18 @@ PRO raftrecgnize
       t=t+1;
     ENDFOR
   ENDFOR
+  ;[TestX TestY]
+  Gabor= getarray_mean(test_gabor,groundall,winsize);%Gabor特征下采样，并将每个像素点特征转变为一列存储
+  GaborX = *Gabor[0]
+  GaborY = *Gabor[1]
+  GLCM= getarray_mean_std(img,groundall,winsize);%GLCM特征提取并下采样，并将每个像素点特征转变为一列存储
+  GlcmX = *GLCM[0]
+  GlcmY = *GLCM[1]
+  ;tempGaborX = transpose(GaborX)
+  ;tempGlcmX =  transpose(GlcmX)
+  TestX=[GaborX,GlcmX];
+  TestX=transpose(TestX);%Gabor特征、GLCM特征合并到一个矩阵
+  TestX=min_max_norm(0,1,TestX);%特征归一化
 END
 ;TODO gabor滤波器
 FUNCTION gaborFilterBank,u,v,m,n
@@ -61,21 +77,23 @@ FUNCTION gaborFilterBank,u,v,m,n
     beta = fu/eta;
     FOR j = 0,v-1 DO BEGIN
       tetav = (j/v)*!pi;
-      gFilterReal = make_array(m,n,VALUE=0,/double);
-      gFilterImaginary = make_array(m,n,VALUE=0,/double);
+      gFilterReal = MAKE_ARRAY(m,n,VALUE=0,/double);
+      gFilterImaginary = MAKE_ARRAY(m,n,VALUE=0,/double);
       FOR x = 0,m-1 DO BEGIN
         FOR y = 0,n-1 DO BEGIN
           xprime = (x+1-((m+1)/2))*COS(tetav)+(y+1-((n+1)/2))*SIN(tetav);
           yprime = -(x+1-((m+1)/2))*SIN(tetav)+(y+1-((n+1)/2))*COS(tetav);
-          gFilterReal[x,y] = (fu^2/(!pi*gama*eta))*EXP(-((alpha^2)*(xprime^2)+(beta^2)*(yprime^2)))*EXP((i+1)*2*!pi*fu*xprime);
-          gFilterImaginary[x,y] = 
-          gFilter = complex(gFilterReal,gFilterImaginary)
+          ;gFilterReal[x,y] = (fu^2/(!pi*gama*eta))*EXP(-((alpha^2)*(xprime^2)+(beta^2)*(yprime^2)))*EXP((i+1)*2*!pi*fu*xprime);
+
+          gFilterReal[x,y] = ((alpha^2)*(xprime^2)+(beta^2)*(yprime^2))
+          gFilterImaginary[x,y] = 2*!pi*fu*xprime
+          gFilter =(fu^2/(!pi*gama*eta))*EXP(DCOMPLEX(-gFilterReal,gFilterImaginary))
         ENDFOR
       ENDFOR
       *(gaborArray[i,j]) = gFilter;
     ENDFOR
   ENDFOR
-  return,gaborArray
+  RETURN,gaborArray
 END
 
 ;todo gabor特征
@@ -89,7 +107,7 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   gaborResult = PTRARR(u,v,/ALLOCATE_HEAP);
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
-      *(gaborResult[i,j]) = convol(img,*(gaborArray[i,j]));
+      *(gaborResult[i,j]) = CONVOL(img,*(gaborArray[i,j]));
       ; J{u,v} = filter2(G{u,v},I);
     ENDFOR
   ENDFOR
@@ -101,17 +119,17 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   m = imgsize[2]
   s = (n*m)/(d1*d2);
   l = s*u*v;
-  featureVector = make_array(l,1,value=0,/double);
+  featureVector = MAKE_ARRAY(l,1,value=0,/double);
   c = 0;
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
       c = c+1;
       gaborAbsptr = *(gaborResult[i,j])
       gaborAbs = ABS(gaborAbsptr);
-;      gaborAbs = downsample(gaborAbs,d1);
-;      gaborAbs = downsample(TRANSPOSE(gaborAbs),d2);
+      ;      gaborAbs = downsample(gaborAbs,d1);
+      ;      gaborAbs = downsample(TRANSPOSE(gaborAbs),d2);
       gaborAbs = congrid(gaborAbs,300,300)
-      gsize = size(gaborAbs)
+      gsize = SIZE(gaborAbs)
       gaborAbs = REFORM(gaborAbs,gsize[1]*gsize[2],1);
 
       ; Normalized to zero mean AND unit variance. (if NOT applicable, please comment this line)
@@ -120,9 +138,9 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
       featureVector[((c-1)*s):(c*s-1)] = gaborAbs;
     ENDFOR
   ENDFOR
-  featureMapPTR = ptr_new(featureMap);
-  featureVectorPTR = ptr_new(featureVector);
-  return,[featureMapPTR,featureVectorPTR]
+  featureMapPTR = PTR_NEW(featureMap);
+  featureVectorPTR = PTR_NEW(featureVector);
+  RETURN,[featureMapPTR,featureVectorPTR]
 END
 ;+
 ;NAME:
@@ -193,8 +211,76 @@ FUNCTION downsample, array, Nx, Ny, Nz
   RETURN, result
 END
 ;TODO getarray_mean
-function getarray_mean,images,label,winsize
+FUNCTION getarray_mean,images,label,winsize
   sz= winsize;
-  num_patches=FLOOR(image_size/sz)*FLOOR(image_size2/sz);
+  imgsize = SIZE(images)
+  image_size = imgsize[1]
+  image_size2 = imgsize[2]
+  num_images = imgsize[3]
+  num_patches=FLOOR(image_size/sz)*FLOOR(image_size/sz);
   totalsamples = 0;
-end
+  ;% extract subimages at random from this image to make data vector X
+  ;% Step through the images
+  X= MAKE_ARRAY(num_images,num_patches,value=0,/double)
+  Y= MAKE_ARRAY(1,num_patches,value=0,/double)
+  ;% Extract patches at random from this image to make data vector X
+  FOR r=0,sz,(FLOOR(image_size/sz)-1)*sz+1 DO BEGIN
+    FOR c=0,sz,(FLOOR(image_size2/sz)-1)*sz+1 DO BEGIN
+      totalsamples = totalsamples + 1
+      FOR i=0,num_images-1 DO BEGIN
+        X(i,totalsamples)=mean(REFORM(IMAGES[r:r+sz-1,c:c+sz-1,i],sz^2,1));
+      ENDFOR
+      Y(*,totalsamples)=ROUND(TOTAL(TOTAL(REFORM(Label[r:r+sz-1,c:c+sz-1],sz^2,1)))/(sz^2));
+    ENDFOR
+  ENDFOR
+  XPTR = PTR_NEW(X);
+  YPTR = PTR_NEW(Y);
+  RETURN,[XPTR,YPTR]
+END
+FUNCTION getarray_mean_std,stdimg,label,winsize
+  sz= winsize;
+  imgsize = SIZE(stdimg)
+  image_size = imgsize[1]
+  image_size2 = imgsize[2]
+  num_images = 1
+  num_patches=FLOOR(image_size/sz)*FLOOR(image_size/sz);
+  totalsamples = 0;
+  ;% extract subimages at random from this image to make data vector X
+  ;% Step through the images
+  X= MAKE_ARRAY(num_images*2,num_patches,value=0,/double)
+  Y= MAKE_ARRAY(1,num_patches,value=0,/double)
+  ;% Extract patches at random from this image to make data vector X
+  FOR r=0,sz,(FLOOR(image_size/sz)-1)*sz+1 DO BEGIN
+    FOR c=0,sz,(FLOOR(image_size2/sz)-1)*sz+1 DO BEGIN
+      totalsamples = totalsamples + 1
+      FOR i=0,num_images-1 DO BEGIN
+        X[i,totalsamples]=mean(REFORM(stdimg[r:r+sz-1,c:c+sz-1,i],sz^2,1));
+        X[i+num_images,totalsamples]=stddev(REFORM(stdimg[r:r+sz-1,c:c+sz-1,i],sz^2,1));
+      ENDFOR
+      Y[*,totalsamples]=ROUND(TOTAL(TOTAL(REFORM(Label[r:r+sz-1,c:c+sz-1],sz^2,1)))/(sz^2));
+    ENDFOR
+  ENDFOR
+  XPTR = PTR_NEW(X);
+  YPTR = PTR_NEW(Y);
+  RETURN,[XPTR,YPTR]
+END
+FUNCTION min_max_norm,min_value,max_value,x
+  ;%normalize each column OF the input matrix x using MIN MAX normalization
+  ;%min_value is the lower bound after normalization AND max_value is the upper bound after normalization
+  IF max_value LE min_value then begin
+    ;DIALOG_MESSAGE('max value can"t be lower than min value');
+  END
+  size_x=SIZE(x);
+  y=MAKE_ARRAY(size_x[1],size_x[2],value=0,/double)
+  FOR col=0,size_x[2]-1 DO BEGIN
+    max_col=MAX(x[*,col]);
+    min_col=MIN(x[*,col]);
+    FOR line=0,size_x[1]-1 DO BEGIN
+      IF max_col eq min_col THEN BEGIN
+        y[line,col]=(max_value+min_value)/2;
+      ENDIF ELSE BEGIN
+        y[line,col]=((x[line,col]-min_col)/(max_col-min_col))*(max_value-min_value)+min_value;
+      END
+    ENDFOR
+  ENDFOR
+END
