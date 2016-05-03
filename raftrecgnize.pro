@@ -44,6 +44,15 @@ PRO raftrecgnize
   TestX=[GaborX,GlcmX];
   TestX=TRANSPOSE(TestX);%Gabor特征、GLCM特征合并到一个矩阵
   TestX=min_max_norm(0,1,TestX);%特征归一化
+  ;%随机选取训练样本
+  gaborsize = size(GaborY)
+  rand=randomu(gaborsize[2]);%产生随机数
+  trainingnum=ceil(gaborsize[2]*0.3);  %取30%的点
+  index=rand[1:trainingnum];%训练样本的对应的序号
+  TrainX=TestX[*,index];%选取训练样本的特征
+  TrainY=GaborY[*,index];%选取训练样本的标签
+  index_one=where(TrainY eq 1);%训练样本中浮筏的标签
+  index_zero=where(TrainY eq 0);%训练样本中背景的标签
 END
 ;TODO gabor滤波器
 FUNCTION gaborFilterBank,u,v,m,n
@@ -291,3 +300,15 @@ FUNCTION kappa,confusion_max
   v=total(confusion_max);
   kc=(n*total(diag_matrix(confusion_max))-v*u)/(n*n-v*u);
 END
+function vectortoimage,image_size,image_size2, label, winsize
+  ;num_patches=size(label,2);
+  sz= winsize;
+  Y= MAKE_ARRAY(image_size,image_size2,value=0,/double)
+  totalsamples = 0;
+  for r=1,sz,(floor(image_size/sz)-1)*sz+1 do begin
+    for c=1,sz,(floor(image_size2/sz)-1)*sz+1 do begin
+      totalsamples = totalsamples + 1;
+      Y[r:r+sz-1,c:c+sz-1]= label[*,totalsamples];
+    endfor
+  endfor
+end
