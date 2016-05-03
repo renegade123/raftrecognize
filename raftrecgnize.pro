@@ -284,3 +284,10 @@ FUNCTION min_max_norm,min_value,max_value,x
     ENDFOR
   ENDFOR
 END
+FUNCTION kappa,confusion_max
+  ;[a,b]=SIZE(confusion_max);
+  n=total(total(confusion_max));
+  u=total(confusion_max,2);
+  v=total(confusion_max);
+  kc=(n*total(diag_matrix(confusion_max))-v*u)/(n*n-v*u);
+END
