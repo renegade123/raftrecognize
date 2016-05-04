@@ -45,14 +45,41 @@ PRO raftrecgnize
   TestX=TRANSPOSE(TestX);%Gabor特征、GLCM特征合并到一个矩阵
   TestX=min_max_norm(0,1,TestX);%特征归一化
   ;%随机选取训练样本
-  gaborsize = size(GaborY)
-  rand=randomu(gaborsize[2]);%产生随机数
-  trainingnum=ceil(gaborsize[2]*0.3);  %取30%的点
-  index=rand[1:trainingnum];%训练样本的对应的序号
-  TrainX=TestX[*,index];%选取训练样本的特征
+  gaborsize = SIZE(GaborY)
+  print,gaborsize[2]
+  rand=RANDOMU(seed,gaborsize[2]);%产生随机数
+  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
+  index=rand[0:trainingnum-1];%训练样本的对应的序号
+  TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
-  index_one=where(TrainY eq 1);%训练样本中浮筏的标签
-  index_zero=where(TrainY eq 0);%训练样本中背景的标签
+  index_one=WHERE(TrainY EQ 1);%训练样本中浮筏的标签
+  index_zero=WHERE(TrainY EQ 0);%训练样本中背景的标签
+  ;%稀疏表示分类器
+  res=make_array(1,2,VALUE=0,/DOUBLE);
+  PredictY=make_array(1,gaborsize[2],VALUE=0,/DOUBLE);%预测标签
+  ;%稀疏表示算法
+;  FOR i=0,gaborsize[2]-1 do begin
+;    X = SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
+;    seedD_one=TrainX(*,index_one);seedD_zero=TrainX(:,index_zero);
+;    seedX_one=X(index_one,*);seedX_zero=X(index_zero,:);
+;    Res_one=TestX(*,i)-seedD_one*seedX_one;
+;    Res_zero=TestX(*,i)-seedD_zero*seedX_zero;
+;    res(1)=norm(Res_zero);res(2)=norm(Res_one);
+;    ;[ww index_lab]=MIN(res);
+;    PredictY(*,i)=index_lab-1;
+;  ENDFOR
+  ;map=vectortoimage(row,col,PredictY,winsize);%预测标签向量变为矩阵，并上采样
+;******************************************************************************
+  ;%后处理：腐蚀、膨胀
+;  fg=DOUBLE(bwareaopen(map,100,8));
+;  SE1=strel('square',8);
+;  SE2=strel('square',4);
+;  fg_dilate=imdilate(fg,SE1,'full');%膨胀
+;  fg_erode=imerode(fg_dilate,SE2);%腐蚀
+;  map2=fg_erode(4:row+3,4:col+3);%最终分类结果
+  ground=image(groundall);
+  ;imagesc(map2);
+ ;****************************************************************************
 END
 ;TODO gabor滤波器
 FUNCTION gaborFilterBank,u,v,m,n
@@ -151,74 +178,7 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   featureVectorPTR = PTR_NEW(featureVector);
   RETURN,[featureMapPTR,featureVectorPTR]
 END
-;+
-;NAME:
-;  DOWNSAMPLE
-;PURPOSE:
-;  Downsample 1D, 2D, or 3D array, summing the original array over the
-;  domain of the new pixels. Works like REBIN, except that the new size
-;  does not have to be an integer multiple of the original size. For most
-;  purposes, this procedure is preferable to interpolation when downsampling.
-;  This routine will also upsample if desired, in which case the action is
-;  equivalent to using CONGRID with cubic convolutional interpolation.
-;CALLING SEQUENCE:
-;  result = downsample(array, Nx [, Ny [, Nz]])
-;RETURN VALUE:
-;  The result is an array downsampled to the requested dimensions.
-;ARGUMENTS:
-;  Nx = Size of first dimension of the result.
-;  Ny = Size of the second dimension of the result (required if array is 2-3D,
-;     ignored otherwise).
-;  Nz = Size of the third dimension of the result (required if array is 3D,
-;     ignored otherwise).
-;ALGORITHM:
-;  First, the array is upsampled to a size that is an integer multiple of
-;  (Nx, Ny, Nz) by CONGRID using cubic convolutional interpolation. Then
-;  the image is decimated to the desired size using REBIN. Note that for 3D
-;  arrays, CONGRID should revert to linear interpolation (I haven't actually
-;  tested this).
-;MODIFICATION HISTORY:
-;  2009-Aug-11  C. Kankelborg
-FUNCTION downsample, array, Nx, Ny, Nz
-  ;-
 
-  asize = SIZE(array)
-  CASE asize[0] OF
-    1: BEGIN
-      Nx0 = asize[1]
-      ratio = CEIL(FLOAT(Nx0)/FLOAT(Nx))
-      Nx1 = ratio * Nx
-      array1 = congrid(array, Nx1, cubic=-0.5, /center)
-      result = REBIN(array1, Nx)
-    END
-    2: BEGIN
-      Nx0 = asize[1]
-      ratio = CEIL(FLOAT(Nx0)/FLOAT(Nx))
-      Nx1 = ratio * Nx
-      Ny0 = asize[2]
-      ratio = CEIL(FLOAT(Ny0)/FLOAT(Ny))
-      Ny1 = ratio * Ny
-      array1 = congrid(array, Nx1, Ny1, cubic=-0.5, /center)
-      result = REBIN(array1, Nx, Ny)
-    END
-    3: BEGIN
-      Nx0 = asize[1]
-      ratio = CEIL(FLOAT(Nx0)/FLOAT(Nx))
-      Nx1 = ratio * Nx
-      Ny0 = asize[2]
-      ratio = CEIL(FLOAT(Ny0)/FLOAT(Ny))
-      Ny1 = ratio * Ny
-      Nz0 = asize[3]
-      ratio = CEIL(FLOAT(Nz0)/FLOAT(Nz))
-      Nz1 = ratio * Nz
-      array1 = congrid(array, Nx1, Ny1, Nz1, cubic=-0.5, /center)
-      result = REBIN(array1, Nx, Ny, Nz)
-    END
-    ELSE: MESSAGE,'Input array must be 1D, 2D, or 3D.'
-  ENDCASE
-
-  RETURN, result
-END
 ;TODO getarray_mean
 FUNCTION getarray_mean,images,label,winsize
   sz= winsize;
@@ -292,23 +252,100 @@ FUNCTION min_max_norm,min_value,max_value,x
       END
     ENDFOR
   ENDFOR
+  return,y
 END
 FUNCTION kappa,confusion_max
   ;[a,b]=SIZE(confusion_max);
-  n=total(total(confusion_max));
-  u=total(confusion_max,2);
-  v=total(confusion_max);
-  kc=(n*total(diag_matrix(confusion_max))-v*u)/(n*n-v*u);
+  n=TOTAL(TOTAL(confusion_max));
+  u=TOTAL(confusion_max,2);
+  v=TOTAL(confusion_max);
+  kc=(n*TOTAL(DIAG_MATRIX(confusion_max))-v*u)/(n*n-v*u);
+  RETURN,kc
 END
-function vectortoimage,image_size,image_size2, label, winsize
+FUNCTION vectortoimage,image_size,image_size2, label, winsize
   ;num_patches=size(label,2);
   sz= winsize;
   Y= MAKE_ARRAY(image_size,image_size2,value=0,/double)
   totalsamples = 0;
-  for r=1,sz,(floor(image_size/sz)-1)*sz+1 do begin
-    for c=1,sz,(floor(image_size2/sz)-1)*sz+1 do begin
+  FOR r=1,sz,(FLOOR(image_size/sz)-1)*sz+1 DO BEGIN
+    FOR c=1,sz,(FLOOR(image_size2/sz)-1)*sz+1 DO BEGIN
       totalsamples = totalsamples + 1;
       Y[r:r+sz-1,c:c+sz-1]= label[*,totalsamples];
-    endfor
-  endfor
-end
+    ENDFOR
+  ENDFOR
+  RETURN,Y
+END
+FUNCTION SimulOMP,S, Phi, sigma, T, normType
+  ;  % Simultaneous OMP, specify the type OF norm used FOR selecting the atoms
+  ;  % based on paper (normType = 1 in Tropp's algorithm)
+  ;  % "Algorithms for Simultaneous Sparse Approximation Part I: Greedy  Pursuit"
+  ;  % J. Tropp, A. Gilbert, and M. Strauss
+  ;  % MIN ||Coeff||_{row,0}   subject to: S = Phi * Coeff
+  ;  % Input:       S -- signal to be approximated, d x K matrix
+  ;  %            Phi -- DICTIONARY
+  ;  %          sigma -- error tolerance
+  ;  %              T -- number OF iterations
+  ;  %       normType -- type OF norm, 1 FOR L1, 2 FOR L2, 3 FOR infinity norm
+  ;  % Ouptut:  Coeff -- coefficients, a sparse matrix with only T nonzero rows
+  ;  %         indSet -- index set FOR selected atoms (common support)
+  ;  %         Approx -- approximation OF S
+  ;  %            Res -- residuals
+  ;
+  ;  % normalizing columns OF the DICTIONARY
+  ;  %Phi0 = Phi;
+  ;  %Phi = zeros(SIZE(Phi0));
+  phiSize = SIZE(Phi)
+  sSize = SIZE(S)
+  N = phiSize[1]; % the number of atoms
+  d = sSize[1]; 
+  K = sSize[2];
+  Coeff = MAKE_ARRAY(N,d,VALUE=0,/DOUBLE)
+  Approx = MAKE_ARRAY(d,K,VALUE=0,/DOUBLE)
+
+  Res = S;
+  indSet = MAKE_ARRAY(T,1,VALUE=0,/DOUBLE)
+
+  iter = 0;
+  norm_res = MAKE_ARRAY(T,1,VALUE=0,/DOUBLE);
+  WHILE ((norm(Res[*]) GT sigma) && (iter lt T)) DO BEGIN
+    ;% compute the projection
+    IF normType EQ 1 THEN BEGIN
+      temp = SORT(TOTAL(ABS(transpose(Phi)##Res),1))
+      dim = reverse(temp)
+    ENDIF ELSE BEGIN
+      IF normType EQ 2 THEN temp = reverse(SORT(TOTAL(ABS(TRANSPOSE(Phi)*Res)^2,2))) ELSE temp = reverse(SORT(MAX(ABS(TRANSPOSE(Phi)*Res), DIMENSION=2)))
+    ENDELSE
+    ;% update the index set
+    val = temp[0]
+    idx = temp
+    indSet[iter] = idx[0];
+    Coeff[indSet[0:iter],*] = pinv(Phi[*,indSet[0:iter]])*S;
+    Approx = Phi*Coeff;
+    Res = S - Approx;
+    norm_res(iter) = norm(Res[*]);
+    iter = iter + 1;
+  END
+  indSet = indSet(1:iter-1);
+  RETURN,Coeff
+END
+FUNCTION pinv,a,rcond=rcond
+  ;
+  COMPILE_OPT defint32,strictarr,logical_predicate
+  ;
+  SVDC,a,w,u,v   ; singular value decomposition
+  ;
+  n=N_ELEMENTS(w)
+  threshold=N_ELEMENTS(rcond)? MAX(w)*rcond : 0.
+  ii=WHERE(w GT threshold,count)
+  IF count LT n THEN BEGIN
+    MESSAGE,/info,STRTRIM(n-count,2)+' small singular values.'
+    IF count LE 0 THEN MESSAGE,'All singular values are too small.'
+  END
+  ;
+  jj=(INDGEN(n))[ii]*(n+1)   ; diagonal elements
+  matrix=MAKE_ARRAY(n,n,type=SIZE(w,/type))
+  matrix[jj]=1./w[ii]
+  result=TRANSPOSE(u)#matrix#v
+  ;
+  RETURN,result
+END
