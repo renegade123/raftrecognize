@@ -1,11 +1,13 @@
 PRO raftrecgnize
   PRINT,"hello,world!"
-  originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
+  ;originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
+  originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
   HELP,originimg
   img = originimg[501:800,501:800]
   ;tvscl,img
   im=image(img, TITLE='Raft',/OVERPLOT)
-  groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  ;groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
   groundall=groundall(501:800,501:800);
   ;下采样窗大小
@@ -74,8 +76,9 @@ PRO raftrecgnize
 ;  fg=DOUBLE(bwareaopen(map,100,8));
 ;  SE1=strel('square',8);
 ;  SE2=strel('square',4);
-;  fg_dilate=imdilate(fg,SE1,'full');%膨胀
-;  fg_erode=imerode(fg_dilate,SE2);%腐蚀
+  ;MORPH_CLOSE和MORPH_OPEN
+  fg_dilate=dilate(fg,SE1);%膨胀  腐蚀是erode膨胀是dilate
+  fg_erode=erode(fg_dilate,SE2);%腐蚀
 ;  map2=fg_erode(4:row+3,4:col+3);%最终分类结果
   ground=image(groundall);
   ;imagesc(map2);
