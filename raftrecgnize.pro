@@ -1,13 +1,13 @@
 PRO raftrecgnize
   PRINT,"hello,world!"
-  originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
-  ;originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
+  ;originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
+  originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
   HELP,originimg
   img = originimg[501:800,501:800]
   ;tvscl,img
   im=image(img, TITLE='Raft',/OVERPLOT)
-  groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
-  ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
+  ;groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
   groundall=groundall(501:800,501:800);
   ;下采样窗大小
@@ -60,17 +60,17 @@ PRO raftrecgnize
   res=make_array(1,2,VALUE=0,/DOUBLE);
   PredictY=make_array(1,gaborsize[2],VALUE=0,/DOUBLE);%预测标签
   ;%稀疏表示算法
-;  FOR i=0,gaborsize[2]-1 do begin
-;    X = SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
-;    seedD_one=TrainX(*,index_one);seedD_zero=TrainX(:,index_zero);
-;    seedX_one=X(index_one,*);seedX_zero=X(index_zero,:);
-;    Res_one=TestX(*,i)-seedD_one*seedX_one;
-;    Res_zero=TestX(*,i)-seedD_zero*seedX_zero;
-;    res(1)=norm(Res_zero);res(2)=norm(Res_one);
-;    ;[ww index_lab]=MIN(res);
-;    PredictY(*,i)=index_lab-1;
-;  ENDFOR
-  ;map=vectortoimage(row,col,PredictY,winsize);%预测标签向量变为矩阵，并上采样
+  FOR i=0,gaborsize[2]-1 do begin
+    X = SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
+    seedD_one=TrainX(*,index_one);seedD_zero=TrainX(:,index_zero);
+    seedX_one=X(index_one,*);seedX_zero=X(index_zero,:);
+    Res_one=TestX(*,i)-seedD_one*seedX_one;
+    Res_zero=TestX(*,i)-seedD_zero*seedX_zero;
+    res(1)=norm(Res_zero);res(2)=norm(Res_one);
+    ;[ww index_lab]=MIN(res);
+    PredictY(*,i)=index_lab-1;
+  ENDFOR
+  map=vectortoimage(row,col,PredictY,winsize);%预测标签向量变为矩阵，并上采样
 ;******************************************************************************
   ;%后处理：腐蚀、膨胀
 ;  fg=DOUBLE(bwareaopen(map,100,8));
