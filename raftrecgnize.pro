@@ -1,13 +1,13 @@
 PRO raftrecgnize
   PRINT,"hello,world!"
-  ;originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
-  originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
+  originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
+  ;originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
   HELP,originimg
   img = originimg[501:800,501:800]
   ;tvscl,img
   im=image(img, TITLE='Raft',/OVERPLOT)
-  ;groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
-  groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
+  groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
   groundall=groundall(501:800,501:800);
   ;下采样窗大小
@@ -26,7 +26,7 @@ PRO raftrecgnize
   featureMap = *feature[0]
   featureVector = *feature[1]
   ;将cell存储特征转变为矩阵格式
-  test_gabor=MAKE_ARRAY(irow,icol,40);
+  test_gabor=MAKE_ARRAY(irow,icol,40,VALUE=0,/DOUBLE);
   t=0;
   FOR i=0,4 DO BEGIN
     FOR j=0,7 DO BEGIN
@@ -118,6 +118,7 @@ FUNCTION gaborFilterBank,u,v,m,n
       tetav = (j/v)*!pi;
       gFilterReal = MAKE_ARRAY(m,n,VALUE=0,/double);
       gFilterImaginary = MAKE_ARRAY(m,n,VALUE=0,/double);
+      gFilter = MAKE_ARRAY(m,n,VALUE=0,/double);
       FOR x = 0,m-1 DO BEGIN
         FOR y = 0,n-1 DO BEGIN
           xprime = (x+1-((m+1)/2))*COS(tetav)+(y+1-((n+1)/2))*SIN(tetav);
@@ -126,7 +127,7 @@ FUNCTION gaborFilterBank,u,v,m,n
 
           gFilterReal[x,y] = ((alpha^2)*(xprime^2)+(beta^2)*(yprime^2))
           gFilterImaginary[x,y] = 2*!pi*fu*xprime
-          gFilter =(fu^2/(!pi*gama*eta))*EXP(DCOMPLEX(-gFilterReal,gFilterImaginary))
+          gFilter[x,y] =(fu^2/(!pi*gama*eta))*EXP(DCOMPLEX(-gFilterReal[x,y],gFilterImaginary[x,y]))
         ENDFOR
       ENDFOR
       *(gaborArray[i,j]) = gFilter;
@@ -146,7 +147,7 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   gaborResult = PTRARR(u,v,/ALLOCATE_HEAP);
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
-      *(gaborResult[i,j]) = CONVOL(img,*(gaborArray[i,j]));
+      *(gaborResult[i,j]) = CONvol(img,*(gaborArray[i,j]),/EDGE_ZERO);
       ; J{u,v} = filter2(G{u,v},I);
     ENDFOR
   ENDFOR
@@ -196,13 +197,14 @@ FUNCTION getarray_mean,images,label,winsize
   X= MAKE_ARRAY(num_images,num_patches,value=0,/double)
   Y= MAKE_ARRAY(1,num_patches,value=0,/double)
   ;% Extract patches at random from this image to make data vector X
-  FOR r=0,sz,(FLOOR(image_size/sz)-1)*sz+1 DO BEGIN
-    FOR c=0,sz,(FLOOR(image_size2/sz)-1)*sz+1 DO BEGIN
+  FOR r=0,(FLOOR(image_size/sz)-1)*sz,sz DO BEGIN
+    FOR c=0,(FLOOR(image_size2/sz)-1)*sz,sz DO BEGIN
       totalsamples = totalsamples + 1
       FOR i=0,num_images-1 DO BEGIN
-        X(i,totalsamples)=mean(REFORM(IMAGES[r:r+sz-1,c:c+sz-1,i],sz^2,1));
+        X[i,totalsamples-1]=mean(REFORM(IMAGES[r:r+sz-1,c:c+sz-1,i],sz^2,1));
       ENDFOR
-      Y(*,totalsamples)=ROUND(TOTAL(TOTAL(REFORM(Label[r:r+sz-1,c:c+sz-1],sz^2,1)))/(sz^2));
+      labelreform = REFORM(Label[r:r+sz-1,c:c+sz-1],sz^2,1)
+      Y[*,totalsamples-1]=ROUND(TOTAL(TOTAL(labelreform))/(sz^2));
     ENDFOR
   ENDFOR
   XPTR = PTR_NEW(X);
