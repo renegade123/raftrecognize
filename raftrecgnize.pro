@@ -1,13 +1,13 @@
 PRO raftrecgnize
   PRINT,"hello,world!"
-  originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
-  ;originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
+  ;originimg = read_image("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp")
+  originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
   HELP,originimg
   img = originimg[501:800,501:800]
   ;tvscl,img
   im=image(img, TITLE='Raft',/OVERPLOT)
-  groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
-  ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
+  ;groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
   groundall=groundall(501:800,501:800);
   ;下采样窗大小
