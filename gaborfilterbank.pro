@@ -31,8 +31,9 @@ FUNCTION gaborFilterBank,u,v,m,n
     FOR j = 0,v-1 DO BEGIN
       tetav = (DOUBLE(j)/DOUBLE(v))*!pi;
       gFilterReal = MAKE_ARRAY(m,n,VALUE=0,/double);
+      gFilterIM = MAKE_ARRAY(m,n,VALUE=0,/double);
       gFilterImaginary = MAKE_ARRAY(m,n,VALUE=0,/double);
-      gFilter = MAKE_ARRAY(m,n,VALUE=0,/double);
+      gFilter =DCOMPLEX( MAKE_ARRAY(m,n,VALUE=0,/double),MAKE_ARRAY(m,n,VALUE=0,/double))
       FOR x = 0,m-1 DO BEGIN
         FOR y = 0,n-1 DO BEGIN
           xprime = (x+1-((m+1)/2))*COS(tetav)+(y+1-((n+1)/2))*SIN(tetav);

@@ -8,9 +8,10 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   u = gsize[1]
   v = gsize[2]
   gaborResult = PTRARR(u,v,/ALLOCATE_HEAP);
+  dimg = dcomplex(img,MAKE_ARRAY(300,300,value=0,/double))
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
-      *(gaborResult[i,j]) = CONVolve(img,*(gaborArray[i,j]));
+      *(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_MIRROR);
       ;print,"conv2"+1
       ; J{u,v} = filter2(G{u,v},I);
     ENDFOR
