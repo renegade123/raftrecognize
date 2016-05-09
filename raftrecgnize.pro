@@ -55,7 +55,7 @@ PRO raftrecgnize
   gaborsize = SIZE(GaborY)
   PRINT,gaborsize[2]
   rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
-  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
+  trainingnum=CEIL(gaborsize[2]*0.15);  %取30%的点
   index=rand[0:trainingnum-1];%训练样本的对应的序号
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
@@ -67,7 +67,7 @@ PRO raftrecgnize
   ;todo:%稀疏表示算法
   FOR i=0,gaborsize[2]-1 DO BEGIN
     print,i
-    X = SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
+    X = SimulOMP(TestX(i,*), TrainX, 1e-8, 10,1);
     seedD_one=TrainX[index_one,*];
     seedD_zero=TrainX[index_zero,*];
     seedX_one=X[index_one,*];
@@ -85,7 +85,7 @@ PRO raftrecgnize
   map=vectortoimage(irow,icol,PredictY,winsize);%预测标签向量变为矩阵，并上采样
   ;******************************************************************************
   ;%后处理：腐蚀、膨胀
-  fg=DOUBLE(MORPH_OPEN(map, REPLICATE(100,8)));
+  fg=DOUBLE(bwareaopen(map,100,8));
   SE1=strel('square',8);
   SE2=strel('square',4);
   ;MORPH_CLOSE和MORPH_OPEN
