@@ -97,11 +97,11 @@ PRO raftrecgnize
   afg = image(fg,/CURRENT, LAYOUT=[3,2,4], TITLE="斑块过滤完成")
   aaa = image(map2,/CURRENT,LAYOUT=[3,2,5],TITLE="最终结果");
   ;****************************************************************************
-  conf_max2=confusionmat(reform(groundall,[],1),reshape(map2,[],1));
-  overallacc2=sum(diag(conf_max2))/sum(sum(conf_max2))
-  every_classacc2=diag(conf_max2)'./sum(conf_max2);
-  averageacc2=mean(every_classacc2)
-  kapparate2=(conf_max2)
+;  conf_max2=confusionmat(reform(groundall,[],1),reshape(map2,[],1));
+;  overallacc2=sum(diag(conf_max2))/sum(sum(conf_max2))
+;  every_classacc2=diag(conf_max2)'./sum(conf_max2);
+;  averageacc2=mean(every_classacc2)
+;  kapparate2=(conf_max2)
 END
 
 
