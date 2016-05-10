@@ -1,20 +1,19 @@
 PRO raftrecgnize
   PRINT,"hello,world!"
-  originimg = double(read_bmp("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp"))
+  originimg = DOUBLE(read_bmp("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp"))
   ;originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
   HELP,originimg
   originimg = originimg/255.0
-  originimg = transpose(rotate(originimg,1))
-  img = originimg[501:800,501:800]
+  originimg = TRANSPOSE(ROTATE(originimg,1))
+  img = originimg[500:799,500:799]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
   groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
   ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
-  
+
   groundall=groundall[501:800,501:800];
-  aimg = image(img)
-  gimg = image(groundall)
+  
   ;下采样窗大小
   winsize=3
   ;类别两类
@@ -55,7 +54,7 @@ PRO raftrecgnize
   gaborsize = SIZE(GaborY)
   PRINT,gaborsize[2]
   rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
-  trainingnum=CEIL(gaborsize[2]*0.16);  %取30%的点
+  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
   index=rand[0:trainingnum-1];%训练样本的对应的序号
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
@@ -66,7 +65,7 @@ PRO raftrecgnize
   PredictY=MAKE_ARRAY(1,gaborsize[2],VALUE=0,/DOUBLE);%预测标签
   ;todo:%稀疏表示算法
   FOR i=0,gaborsize[2]-1 DO BEGIN
-    print,i
+    PRINT,i
     X = SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
     seedD_one=TrainX[index_one,*];
     seedD_zero=TrainX[index_zero,*];
@@ -76,7 +75,7 @@ PRO raftrecgnize
     Res_zero=TestX[i,*]-seedD_zero##seedX_zero;
     res[0]=norm(Res_zero);
     res[1]=norm(Res_one);
-    
+
     mres=MIN(res,location);
     index_lab = location
     ww = mres
@@ -85,16 +84,24 @@ PRO raftrecgnize
   map=vectortoimage(irow,icol,PredictY,winsize);%预测标签向量变为矩阵，并上采样
   ;******************************************************************************
   ;%后处理：腐蚀、膨胀
-  fg=DOUBLE(bwareaopen(map,100,8));
-  SE1=strel('square',8);
-  SE2=strel('square',4);
+  fg=DOUBLE(bwareaopen(map));
+  SE1 = REPLICATE(1, 8, 8);
+  SE2 = REPLICATE(1, 4, 4);
   ;MORPH_CLOSE和MORPH_OPEN
   fg_dilate=DILATE(fg,SE1);%膨胀  腐蚀是erode膨胀是dilate
-  fg_erode=ERODE(fg_dilate,SE2);%腐蚀
-  ;  map2=fg_erode(4:row+3,4:col+3);%最终分类结果
-  ground=image(groundall);
-  aaa = image(map);
+  fg_erode=ERODE(fg_dilate,SE1);%腐蚀
+  map2=double(fg_erode[4:irow-4,4:icol-4]);%最终分类结果
+  aimg = image(img,/CURRENT, LAYOUT=[3,2,1], TITLE='原图')
+  gimg = image(groundall,/CURRENT, LAYOUT=[3,2,2], TITLE='groundall')
+  amap = image(map,/CURRENT, LAYOUT=[3,2,3], TITLE="初始图像")
+  afg = image(fg,/CURRENT, LAYOUT=[3,2,4], TITLE="斑块过滤完成")
+  aaa = image(map2,/CURRENT,LAYOUT=[3,2,5],TITLE="最终结果");
   ;****************************************************************************
+  conf_max2=confusionmat(reform(groundall,[],1),reshape(map2,[],1));
+  overallacc2=sum(diag(conf_max2))/sum(sum(conf_max2))
+  every_classacc2=diag(conf_max2)'./sum(conf_max2);
+  averageacc2=mean(every_classacc2)
+  kapparate2=(conf_max2)
 END
 
 
@@ -109,8 +116,8 @@ FUNCTION min_max_norm,min_value,max_value,x
   size_x=SIZE(x);
   y=MAKE_ARRAY(size_x[1],size_x[2],value=0,/double)
   FOR col=0,size_x[1]-1 DO BEGIN
-    max_col=double(MAX(x[col,*]));
-    min_col=double(MIN(x[col,*]));
+    max_col=DOUBLE(MAX(x[col,*]));
+    min_col=DOUBLE(MIN(x[col,*]));
     FOR line=0,size_x[2]-1 DO BEGIN
       IF max_col EQ min_col THEN BEGIN
         y[col,line]=(max_value+min_value)/2;

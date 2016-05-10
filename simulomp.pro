@@ -38,7 +38,7 @@ FUNCTION SimulOMP,S, Phi, sigma, T, normType
     ENDELSE
     ;% update the index set
     val = temp[0]
-    idx = temp
+    idx = dim
     indSet[iter] = idx[0];
     Coeff[indSet[0:iter],*] =  PSEUDO_INVERSE(Phi[indSet[0:iter],*])##S;
     Approx = Phi##Coeff;
@@ -46,6 +46,6 @@ FUNCTION SimulOMP,S, Phi, sigma, T, normType
     norm_res(iter) = norm(Res[*]);
     iter = iter + 1;
   END
-  indSet = indSet[1:iter-1];
+  ;indSet = indSet[0:iter-1];
   RETURN,Coeff
 END

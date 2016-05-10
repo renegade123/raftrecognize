@@ -20,20 +20,20 @@ FUNCTION gaborFilterBank,u,v,m,n
   ;
   ; gaborArray = gaborFilterBank(5,8,39,39);
   gaborArray = PTRARR(u,v,/ALLOCATE_HEAP);
-  fmax = 0.25;
-  gama = SQRT(2);
-  eta = SQRT(2);
+  fmax = 0.25D;
+  gama = double(SQRT(2));
+  eta = double(SQRT(2));
 
   FOR i = 0,u-1 DO BEGIN
-    fu = fmax/((SQRT(2))^i);
+    fu = double(fmax/((SQRT(2))^i));
     alpha = fu/gama;
     beta = fu/eta;
     FOR j = 0,v-1 DO BEGIN
-      tetav = (DOUBLE(j)/DOUBLE(v))*!pi;
+      tetav = (DOUBLE(j)/DOUBLE(v))*!const.pi;
       gFilterReal = MAKE_ARRAY(m,n,VALUE=0,/double);
       gFilterIM = MAKE_ARRAY(m,n,VALUE=0,/double);
       gFilterImaginary = MAKE_ARRAY(m,n,VALUE=0,/double);
-      gFilter =DCOMPLEX( MAKE_ARRAY(m,n,VALUE=0,/double),MAKE_ARRAY(m,n,VALUE=0,/double))
+      gFilter =DCOMPLEXarr(m,n)
       FOR x = 0,m-1 DO BEGIN
         FOR y = 0,n-1 DO BEGIN
           xprime = (x+1-((m+1)/2))*COS(tetav)+(y+1-((n+1)/2))*SIN(tetav);
@@ -41,8 +41,8 @@ FUNCTION gaborFilterBank,u,v,m,n
           ;gFilterReal[x,y] = (fu^2/(!pi*gama*eta))*EXP(-((alpha^2)*(xprime^2)+(beta^2)*(yprime^2)))*EXP((i+1)*2*!pi*fu*xprime);
 
           gFilterReal[x,y] = ((alpha^2)*(xprime^2)+(beta^2)*(yprime^2))
-          gFilterImaginary[x,y] = 2*!pi*fu*xprime
-          gFilter[x,y] =(fu^2/(!pi*gama*eta))*EXP(DCOMPLEX(-gFilterReal[x,y],gFilterImaginary[x,y]))
+          gFilterImaginary[x,y] = 2*!const.pi*fu*xprime
+          gFilter[x,y] =double(fu^2/(!const.pi*gama*eta))*EXP(-gFilterReal[x,y])*exp(DCOMPLEX(0.0,gFilterImaginary[x,y]))
         ENDFOR
       ENDFOR
       *(gaborArray[i,j]) = gFilter;

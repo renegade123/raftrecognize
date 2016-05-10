@@ -9,9 +9,24 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   v = gsize[2]
   gaborResult = PTRARR(u,v,/ALLOCATE_HEAP);
   dimg = dcomplex(img,MAKE_ARRAY(300,300,value=0,/double))
+  gaborReal = MAKE_ARRAY(300,300,value=0,/double)
+  gaborIm = MAKE_ARRAY(300,300,value=0,/double)
+  gabor1 = MAKE_ARRAY(300,300,value=0,/double)
+  gabor2 = MAKE_ARRAY(300,300,value=0,/double)
+  gabor3 = MAKE_ARRAY(300,300,value=0,/double)
+  gabor4 = MAKE_ARRAY(300,300,value=0,/double)
+  
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
-      *(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_MIRROR);
+      ;*(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_TRUNCATE);
+      a = *(gaborArray[i,j])
+      gabor1 = convol_fft(real_part(dimg),real_part(*(gaborArray[i,j])))
+      gabor2 = convol_fft(real_part(dimg),IMAGINARY(*(gaborArray[i,j])))
+      gabor3 = convol_fft(IMAGINARY(dimg),IMAGINARY(*(gaborArray[i,j])))
+      gabor4 = convol_fft(IMAGINARY(dimg),real_part(*(gaborArray[i,j])))
+      gaborReal = gabor1 - gabor3
+      gaborIm = gabor2 + gabor4
+      *(gaborResult[i,j]) = dcomplex(gaborReal,gaborIm)
       ;print,"conv2"+1
       ; J{u,v} = filter2(G{u,v},I);
     ENDFOR
@@ -35,10 +50,11 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
       ;      gaborAbs = downsample(TRANSPOSE(gaborAbs),d2);
       ;gaborAbs = downsample(gaborAbs,1,1)
       gsize = SIZE(gaborAbs)
-      gaborAbs = REFORM(gaborAbs,gsize[1]*gsize[2],1);
+      gaborAbs = REFORM(TRANSPOSE(gaborAbs),gsize[1]*gsize[2],1);
 
       ; Normalized to zero mean AND unit variance. (if NOT applicable, please comment this line)
       gaborAbs = (gaborAbs-mean(gaborAbs))/stddev(gaborAbs);
+      ;*(featureMap[i,j]) = REFORM(TRANSPOSE(gaborAbs),n,m);
       *(featureMap[i,j]) = REFORM(TRANSPOSE(gaborAbs),n,m);
       featureVector[((c-1)*s):(c*s-1)] = gaborAbs;
     ENDFOR

@@ -16,7 +16,7 @@ FUNCTION getarray_mean,images,label,winsize
     FOR c=0,(FLOOR(image_size2/sz)-1)*sz,sz DO BEGIN
       totalsamples = totalsamples + 1
       FOR i=0,num_images-1 DO BEGIN
-        X[i,totalsamples-1]=mean(REFORM(IMAGES[r:r+sz-1,c:c+sz-1,i],sz^2,1));
+        X[i,totalsamples-1]=mean(REFORM(IMAGES[r:r+sz-1,c:c+sz-1,i],sz^2,1),/DOUBLE);
       ENDFOR
       labelreform = REFORM(Label[r:r+sz-1,c:c+sz-1],sz^2,1)
       Y[*,totalsamples-1]=ROUND(TOTAL(TOTAL(labelreform))/(sz^2));

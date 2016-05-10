@@ -15,8 +15,8 @@ FUNCTION getarray_mean_std,stdimg,label,winsize
     FOR c=0,(FLOOR(image_size2/sz)-1)*sz,sz DO BEGIN
       totalsamples = totalsamples + 1
       FOR i=0,num_images-1 DO BEGIN
-        X[i,totalsamples-1]=mean(REFORM(stdimg[r:r+sz-1,c:c+sz-1,i],sz^2,1));
-        X[i+num_images,totalsamples-1]=stddev(REFORM(stdimg[r:r+sz-1,c:c+sz-1,i],sz^2,1));
+        X[i,totalsamples-1]=mean(REFORM(stdimg[r:r+sz-1,c:c+sz-1,i],sz^2,1),/DOUBLE);
+        X[i+num_images,totalsamples-1]=stddev(REFORM(stdimg[r:r+sz-1,c:c+sz-1,i],sz^2,1),/DOUBLE);
       ENDFOR
       Y[*,totalsamples-1]=ROUND(TOTAL(TOTAL(REFORM(Label[r:r+sz-1,c:c+sz-1],sz^2,1)))/(sz^2));
     ENDFOR
