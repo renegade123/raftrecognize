@@ -1,5 +1,4 @@
 PRO raftrecgnize
-  PRINT,"hello,world!"
   originimg = DOUBLE(read_bmp("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp"))
   ;originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
   HELP,originimg
@@ -88,20 +87,24 @@ PRO raftrecgnize
   SE1 = REPLICATE(1, 8, 8);
   SE2 = REPLICATE(1, 4, 4);
   ;MORPH_CLOSE和MORPH_OPEN
-  fg_dilate=DILATE(fg,SE1);%膨胀  腐蚀是erode膨胀是dilate
+  fg_map = make_array(irow+16,irow+16,VALUE=0,/DOUBLE)
+  fg_map[8:irow+7,8:irow+7] = fg
+  fg_dilate=DILATE(fg_map,SE1);%膨胀  腐蚀是erode膨胀是dilate
   fg_erode=ERODE(fg_dilate,SE1);%腐蚀
-  map2=double(fg_erode[4:irow-4,4:icol-4]);%最终分类结果
+  map2=double(fg_erode[8:irow+7,8:irow+7]);%最终分类结果
   aimg = image(img,/CURRENT, LAYOUT=[3,2,1], TITLE='原图')
   gimg = image(groundall,/CURRENT, LAYOUT=[3,2,2], TITLE='groundall')
   amap = image(map,/CURRENT, LAYOUT=[3,2,3], TITLE="初始图像")
   afg = image(fg,/CURRENT, LAYOUT=[3,2,4], TITLE="斑块过滤完成")
   aaa = image(map2,/CURRENT,LAYOUT=[3,2,5],TITLE="最终结果");
   ;****************************************************************************
-;  conf_max2=confusionmat(reform(groundall,[],1),reshape(map2,[],1));
-;  overallacc2=sum(diag(conf_max2))/sum(sum(conf_max2))
-;  every_classacc2=diag(conf_max2)'./sum(conf_max2);
-;  averageacc2=mean(every_classacc2)
-;  kapparate2=(conf_max2)
+  ;conf_max2=confmat(reform(groundall[4:irow-4,4:icol-4],N_Elements(groundall[4:irow-4,4:icol-4]),1),reform(map2,N_Elements(map2),1));
+  conf_max2=confmat(reform(groundall,N_Elements(groundall),1),reform(map2,N_Elements(map2),1));
+  print,conf_max2
+  overallacc2=total(diag_matrix(conf_max2))/total(total(conf_max2))
+  every_classacc2=diag_matrix(conf_max2)/total(conf_max2,1);
+  averageacc2=mean(every_classacc2)
+  kapparate2=(conf_max2)
 END
 
 
