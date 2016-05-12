@@ -278,7 +278,7 @@ PRO raftrecognize::superclassfy
   self.OWINDOW.draw
 END
 ;******************************************************************************
-;%后处理：腐蚀、膨胀
+;%后处理：过滤斑块、腐蚀、膨胀
 ;******************************************************************************
 PRO raftrecognize::filterPlaque
   *(self.CONDATA) = DOUBLE(self.bwareaopen(*(self.CONDATA)));
@@ -949,7 +949,8 @@ END
 PRO raftrecognize::originalShow
   ;
   self.OWINDOW.GETPROPERTY, dimensions = windowDims,graphics_tree = oView
-  imageDims = self.IMAGEDIMS
+  ;imageDims = self.IMAGEDIMS
+  imageDims = [300,300]
   imgRate = FLOAT(imageDims[0])/imageDims[1]
   viewRate = FLOAT(windowDims[0])/windowDims[1]
   ;
