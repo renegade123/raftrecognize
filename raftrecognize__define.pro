@@ -129,11 +129,11 @@ PRO raftrecognize::getline,inifile
 END
 
 ;todo 云掩膜
-pro raftrecognize::cloudMask
+PRO raftrecognize::cloudMask
   COMPILE_OPT idl2
   ENVI, /restore_base_save_files
   ENVI_BATCH_INIT
-  self.hdffile = dialog_pickfile(title='Pick .hdf File',filter = ['*.hdf'])
+  self.hdffile = DIALOG_PICKFILE(title='Pick .hdf File',filter = ['*.hdf'])
   self.hbasename = FILE_BASENAME(self.hdffile, '.hdf')
 END
 
@@ -181,7 +181,7 @@ PRO raftrecognize::example_glt_usage
     subset=dims, r_fid=r_fid
 END
 ;参数设置
-PRO raftrecognize::GetProperty, initFlag = initFlag,hdffile = hdffile,hbasename = hbasename 
+PRO raftrecognize::GetProperty, initFlag = initFlag,hdffile = hdffile,hbasename = hbasename
   initFlag= self.INITFLAG
   hdffile= self.hdffile
   hbasename= self.hbasename
@@ -189,8 +189,8 @@ END
 ;**********************************************************************
 ;todo主程序：还要拆分
 ;**********************************************************************
-PRO raftrecgnize::superclassfy
-  originimg = DOUBLE(read_bmp("C:\Users\name\IDLWorkspace83\raftrecognize\data\testme.bmp"))
+PRO raftrecognize::superclassfy
+  originimg = DOUBLE(read_bmp(self.infile))
   ;originimg = read_image('F:\IDLworkspace\raftrecognize\data\testme.bmp')
   HELP,originimg
   originimg = originimg/255.0
@@ -198,12 +198,12 @@ PRO raftrecgnize::superclassfy
   img = originimg[500:799,500:799]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
-  groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  groundall = self.read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
   ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
 
-  groundall=groundall[501:800,501:800];
-
+  groundall=groundall[500:799,500:799];
+  *(self.groundall) = groundall
   ;下采样窗大小
   winsize=3
   ;类别两类
@@ -214,9 +214,9 @@ PRO raftrecgnize::superclassfy
   ;图片行
   irow = isize[2]
   ;设计Gabor滤波器
-  gaborArray = gaborFilterBank(5,8,39,39)
+  gaborArray = self.gaborFilterBank(5,8,39,39)
   ;提取Gabor特征
-  feature = gaborFeatures(img,gaborArray,1,1)
+  feature = self.gaborFeatures(img,gaborArray,1,1)
   featureMap = *feature[0]
   featureVector = *feature[1]
   ;将cell存储特征转变为矩阵格式
@@ -229,22 +229,22 @@ PRO raftrecgnize::superclassfy
     ENDFOR
   ENDFOR
   ;[TestX TestY]
-  Gabor= getarray_mean(test_gabor,groundall,winsize);%Gabor特征下采样，并将每个像素点特征转变为一列存储
+  Gabor= self.getarray_mean(test_gabor,groundall,winsize);%Gabor特征下采样，并将每个像素点特征转变为一列存储
   GaborX = *Gabor[0]
   GaborY = *Gabor[1]
-  GLCM= getarray_mean_std(img,groundall,winsize);%GLCM特征提取并下采样，并将每个像素点特征转变为一列存储
+  GLCM= self.getarray_mean_std(img,groundall,winsize);%GLCM特征提取并下采样，并将每个像素点特征转变为一列存储
   GlcmX = *GLCM[0]
   GlcmY = *GLCM[1]
   ;tempGaborX = transpose(GaborX)
   ;tempGlcmX =  transpose(GlcmX)
   TestX=[GaborX,GlcmX];
   TestX=TRANSPOSE(TestX);%Gabor特征、GLCM特征合并到一个矩阵
-  TestX=min_max_norm(0,1,TestX);%特征归一化
+  TestX=self.min_max_norm(0,1,TestX);%特征归一化
   ;%随机选取训练样本
   gaborsize = SIZE(GaborY)
   PRINT,gaborsize[2]
   rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
-  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
+  trainingnum=CEIL(gaborsize[2]*0.1);  %取30%的点
   index=rand[0:trainingnum-1];%训练样本的对应的序号
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
@@ -254,48 +254,67 @@ PRO raftrecgnize::superclassfy
   res=MAKE_ARRAY(1,2,VALUE=0,/DOUBLE);
   PredictY=MAKE_ARRAY(1,gaborsize[2],VALUE=0,/DOUBLE);%预测标签
   ;todo:%稀疏表示算法
-  FOR i=0,gaborsize[2]-1 DO BEGIN
+  FOR i = 0,gaborsize[2]-1 DO BEGIN
     PRINT,i
-    X = SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
-    seedD_one=TrainX[index_one,*];
-    seedD_zero=TrainX[index_zero,*];
-    seedX_one=X[index_one,*];
-    seedX_zero=X[index_zero,*];
-    Res_one=TestX[i,*]-seedD_one##seedX_one;
-    Res_zero=TestX[i,*]-seedD_zero##seedX_zero;
-    res[0]=norm(Res_zero);
-    res[1]=norm(Res_one);
+    X = self.SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
+    seedD_one = TrainX[index_one,*];
+    seedD_zero = TrainX[index_zero,*];
+    seedX_one = X[index_one,*];
+    seedX_zero = X[index_zero,*];
+    Res_one = TestX[i,*]-seedD_one##seedX_one;
+    Res_zero = TestX[i,*]-seedD_zero##seedX_zero;
+    res[0] = norm(Res_zero);
+    res[1] = norm(Res_one);
 
-    mres=MIN(res,location);
+    mres = MIN(res,location);
     index_lab = location
     ww = mres
-    PredictY[*,i]=index_lab
+    PredictY[*,i] = index_lab
   ENDFOR
-  map=vectortoimage(irow,icol,PredictY,winsize);%预测标签向量变为矩阵，并上采样
-  ;******************************************************************************
-  ;%后处理：腐蚀、膨胀
-  fg=DOUBLE(bwareaopen(map));
+  *(self.CONDATA) = self.vectortoimage(irow,icol,PredictY,winsize);%预测标签向量变为矩阵，并上采样
+  cdata = *(self.CONDATA)
+  ;self.cimage.SETPROPERTY, hide =0,data = bytscl(cdata)
+  self.oimage.SETPROPERTY,data = bytscl(cdata)
+  self.OWINDOW.draw
+END
+;******************************************************************************
+;%后处理：腐蚀、膨胀
+;******************************************************************************
+PRO raftrecognize::filterPlaque
+  *(self.CONDATA) = DOUBLE(self.bwareaopen(*(self.CONDATA)));
+  cdata = *(self.CONDATA)
+  self.cimage.SETPROPERTY, hide =0,data = bytscl(cdata)
+  self.oimage.SETPROPERTY, hide =1
+  self.OWINDOW.draw
+END
+PRO raftrecognize::DILATEERODE
   SE1 = REPLICATE(1, 8, 8);
   SE2 = REPLICATE(1, 4, 4);
   ;MORPH_CLOSE和MORPH_OPEN
-  fg_map = MAKE_ARRAY(irow+16,irow+16,VALUE=0,/DOUBLE)
-  fg_map[8:irow+7,8:irow+7] = fg
-  fg_dilate=DILATE(fg_map,SE1);%膨胀  腐蚀是erode膨胀是dilate
-  fg_erode=ERODE(fg_dilate,SE1);%腐蚀
-  map2=DOUBLE(fg_erode[8:irow+7,8:irow+7]);%最终分类结果
-  aimg = image(img,/CURRENT, LAYOUT=[3,2,1], TITLE='原图')
-  gimg = image(groundall,/CURRENT, LAYOUT=[3,2,2], TITLE='groundall')
-  amap = image(map,/CURRENT, LAYOUT=[3,2,3], TITLE="初始图像")
-  afg = image(fg,/CURRENT, LAYOUT=[3,2,4], TITLE="斑块过滤完成")
-  aaa = image(map2,/CURRENT,LAYOUT=[3,2,5],TITLE="最终结果");
+  fg_map = MAKE_ARRAY(self.imageDims[0]+16,self.imageDims[1]+16,VALUE=0,/DOUBLE)
+  fg_map[8:self.imageDims[0]+7,8:self.imageDims[1]+7] = *(self.CONDATA)
+  fg_dilate = DILATE(fg_map,SE1);%膨胀  腐蚀是erode膨胀是dilate
+  fg_erode = ERODE(fg_dilate,SE1);%腐蚀
+  *(self.CONDATA) = fg_erode[8:self.imageDims[0]+7,8:self.imageDims[1]+7]
+  cdata = *(self.CONDATA)
+  self.cimage.SETPROPERTY, hide =0,data = bytscl(cdata)
+  self.oimage.SETPROPERTY, hide =1
+  self.OWINDOW.draw
+  ;map2 = DOUBLE(fg_erode[8:irow+7,8:irow+7]);%最终分类结果
+  ;aimg = image(img,/CURRENT, LAYOUT=[3,2,1], TITLE='原图')
+  ;gimg = image(groundall,/CURRENT, LAYOUT=[3,2,2], TITLE='groundall')
+  ;amap = image(map,/CURRENT, LAYOUT=[3,2,3], TITLE="初始图像")
+  ;afg = image(fg,/CURRENT, LAYOUT=[3,2,4], TITLE="斑块过滤完成")
+  ;aaa = image(map2,/CURRENT,LAYOUT=[3,2,5],TITLE="最终结果");
   ;****************************************************************************
   ;conf_max2=confmat(reform(groundall[4:irow-4,4:icol-4],N_Elements(groundall[4:irow-4,4:icol-4]),1),reform(map2,N_Elements(map2),1));
-  conf_max2=confmat(REFORM(groundall,N_ELEMENTS(groundall),1),REFORM(map2,N_ELEMENTS(map2),1));
+  groundall = *(self.groundall)
+  conf_max2 = self.confmat(REFORM(groundall,N_ELEMENTS(groundall),1),REFORM(cdata,N_ELEMENTS(cdata),1));
   PRINT,conf_max2
-  overallacc2=TOTAL(DIAG_MATRIX(conf_max2))/TOTAL(TOTAL(conf_max2))
-  every_classacc2=DIAG_MATRIX(conf_max2)/TOTAL(conf_max2,1);
-  averageacc2=mean(every_classacc2)
-  kapparate2=(conf_max2)
+  overallacc2 = TOTAL(DIAG_MATRIX(conf_max2))/TOTAL(TOTAL(conf_max2))
+  every_classacc2 = DIAG_MATRIX(conf_max2)/TOTAL(conf_max2,1);
+  averageacc2 = mean(every_classacc2)
+  kapparate2 = (conf_max2)
 END
 
 ;*********************************************************************
@@ -307,7 +326,7 @@ END
 ; :Uses:
 ;    data = read_txt_data_file('c:test.txt')
 ;**********************************************************************
-FUNCTION read_txt_data_file, infilename
+FUNCTION raftrecognize::read_txt_data_file, infilename
   ;Get the number of lines
   nlines = FILE_LINES(infilename)
 
@@ -340,7 +359,7 @@ END
 ;**********************************************************************
 ;TODO gabor滤波器
 ;**********************************************************************
-FUNCTION gaborFilterBank,u,v,m,n
+FUNCTION raftrecognize::gaborFilterBank,u,v,m,n
   ; GABORFILTERBANK generates a custum Gabor filter bank.
   ; It creates a u by v array, whose elements are m by n matries;
   ; each matrix being a 2-D Gabor filter.
@@ -394,7 +413,7 @@ END
 ;**********************************************************************
 ;todo gabor特征
 ;**********************************************************************
-FUNCTION raftrecgnize::gaborFeatures,img,gaborArray,d1,d2
+FUNCTION raftrecognize::gaborFeatures,img,gaborArray,d1,d2
   img = DOUBLE(img);
   ;; Filtering
   ; Filter input image by each Gabor filter
@@ -460,7 +479,7 @@ END
 ;*********************************************************************
 ;TODO getarray_mean gabor特征采样
 ;*********************************************************************
-FUNCTION raftrecgnize::getarray_mean,images,label,winsize
+FUNCTION raftrecognize::getarray_mean,images,label,winsize
   sz= winsize;
   imgsize = SIZE(images)
   image_size = imgsize[1]
@@ -490,7 +509,7 @@ END
 ;*********************************************************************
 ;TODO getarray_mean GLCM特征采样
 ;*********************************************************************
-FUNCTION raftrecgnize::getarray_mean_std,stdimg,label,winsize
+FUNCTION raftrecognize::getarray_mean_std,stdimg,label,winsize
   sz= winsize;
   imgsize = SIZE(stdimg)
   image_size = imgsize[1]
@@ -520,7 +539,7 @@ END
 ;******************************************************************************
 ;TODO 特征归一化
 ;******************************************************************************
-FUNCTION raftrecgnize::min_max_norm,min_value,max_value,x
+FUNCTION raftrecognize::min_max_norm,min_value,max_value,x
   ;%normalize each column OF the input matrix x using MIN MAX normalization
   ;%min_value is the lower bound after normalization AND max_value is the upper bound after normalization
   IF max_value LE min_value THEN BEGIN
@@ -544,7 +563,7 @@ END
 ;******************************************************************************
 ;TODO Simultaneous OMP, specify the type of norm used for selecting the atoms
 ;******************************************************************************
-FUNCTION raftrecgnize::SimulOMP,S, Phi, sigma, T, normType
+FUNCTION raftrecognize::SimulOMP,S, Phi, sigma, T, normType
   ;  % Simultaneous OMP, specify the type OF norm used FOR selecting the atoms
   ;  % based on paper (normType = 1 in Tropp's algorithm)
   ;  % "Algorithms for Simultaneous Sparse Approximation Part I: Greedy  Pursuit"
@@ -586,7 +605,7 @@ FUNCTION raftrecgnize::SimulOMP,S, Phi, sigma, T, normType
     val = temp[0]
     idx = dim
     indSet[iter] = idx[0];
-    Coeff[indSet[0:iter],*] =  PSEUDO_INVERSE(Phi[indSet[0:iter],*])##S;
+    Coeff[indSet[0:iter],*] =  self.PSEUDO_INVERSE(Phi[indSet[0:iter],*])##S;
     Approx = Phi##Coeff;
     Res = S - Approx;
     norm_res(iter) = norm(Res[*]);
@@ -598,7 +617,7 @@ END
 ;******************************************************************************
 ;TODO pseudo_inverse实现与matlab中pinv相同的功能
 ;******************************************************************************
-FUNCTION raftrecgnize::pseudo_inverse,A,U,V,S,TOL=tol,SORT=sort,_extra=extra
+FUNCTION raftrecognize::pseudo_inverse,A,U,V,S,TOL=tol,SORT=sort,_extra=extra
   ;+
   ;B=pseudo_inverse(A,[U,V,S,tol,EXTRA=extra)
   ;computes the pseudo-inverse using SVDC.
@@ -668,7 +687,7 @@ END
 ;todo:vectortoimage
 ;向量转矩阵
 ;*********************************************************************
-FUNCTION raftrecgnize::vectortoimage,image_size,image_size2, label, winsize
+FUNCTION raftrecognize::vectortoimage,image_size,image_size2, label, winsize
   ;num_patches=size(label,2);
   sz= winsize;
   Y= MAKE_ARRAY(image_size,image_size2,value=0,/double)
@@ -931,7 +950,6 @@ PRO raftrecognize::originalShow
   ;
   self.OWINDOW.GETPROPERTY, dimensions = windowDims,graphics_tree = oView
   imageDims = self.IMAGEDIMS
-  ;
   imgRate = FLOAT(imageDims[0])/imageDims[1]
   viewRate = FLOAT(windowDims[0])/windowDims[1]
   ;
@@ -954,20 +972,24 @@ PRO raftrecognize::CreateDrawImage
   oView = OBJ_NEW('IDLgrView',color = [255,255,255])
   self.OWINDOW.SETPROPERTY, graphics_tree = oView
 
-  queryStatus = QUERY_TIFF(self.INFILE, imageInfo)
+  ;queryStatus = QUERY_TIFF(self.INFILE, imageInfo)
+  queryStatus = QUERY_bmp(self.INFILE, imageInfo)
   IF queryStatus EQ 0 THEN BEGIN
     self.INITFLAG= 0
     RETURN
   ENDIF
 
-  self.IMAGEDIMS = imageInfo.DIMENSIONS
-  data =READ_TIFF(self.INFILE,GEOTIFF=GeoKeys)
+  ;self.IMAGEDIMS = imageInfo.DIMENSIONS
+  self.IMAGEDIMS = [300,300]
+  data =READ_bmp(self.INFILE)
   ;data =READ_TIFF(self.INFILE,GEOTIFF=GeoKeys)
-  TileData = BYTSCL(data)
-  self.ORIDATA = PTR_NEW(TileData,/no_Copy)
-  ;initialLSF=2*MAKE_ARRAY(290,280,/double,VALUE=1)
-  ;initialLSF[0:289,0:279]=-2
-  ;self.CONDATA = PTR_NEW(TRANSPOSE(initialLSF),/no_Copy)
+  ;TileData = BYTSCL(data)
+  data = TRANSPOSE(ROTATE(data,1))
+  data = data[500:799,500:799]
+  self.ORIDATA = PTR_NEW(data,/no_Copy)
+  initialLSF=2*MAKE_ARRAY(290,280,/double,VALUE=1)
+  initialLSF[0:289,0:279]=-2
+  self.CONDATA = PTR_NEW(initialLSF,/no_Copy)
 
   ;
   IF imageInfo.CHANNELS EQ 1 THEN BEGIN
@@ -979,16 +1001,17 @@ PRO raftrecognize::CreateDrawImage
     self.RGBTYPE =1
     self.OIMAGE = OBJ_NEW('IDLgrImage',*(self.ORIDATA) ,INTERLEAVE =0)
   ENDELSE
+  self.cIMAGE = OBJ_NEW('IDLgrImage',*(self.conDATA),hide=1)
   ;辅助红色矩形，初始化为隐藏
   self.ORECT = OBJ_NEW('IDLgrPolygon', $
     style =1,$
     thick=1,$
     color = [230,0,0])
-  
+
   ;oTopModel = OBJ_NEW('IDLgrModel')
   oModel = OBJ_NEW('IDLgrModel')
   ;lModel = OBJ_NEW('IDLgrModel')
-  oModel.ADD, [self.OIMAGE,self.ORECT]
+  oModel.ADD, [self.OIMAGE,self.ORECT,self.cImage]
   ;lModel.add,self.OPRELINE
   ;  lModel->Rotate,[1,0,0],180
   ;  lModel->Rotate,[0,0,1],180
@@ -1000,10 +1023,11 @@ END
 FUNCTION raftrecognize::INIT,infile,drawID
   ;
   self.INFILE = infile
-   ;传入的drawID
-  WIDGET_CONTROL, drawID,GET_VALUE = oWindow
-  ;Widget_Info(drawID,GET_ = oWindow)
-  self.OWINDOW = oWindow
+  labeldata = []
+  self.groundall = ptr_new(labeldata,/n)
+  ;传入的drawID
+    WIDGET_CONTROL, drawID,GET_VALUE = oWindow
+    self.OWINDOW = oWindow
   ;self.OWINDOW = OBJ_NEW("IDLgrWindow")
   ;调用CreateImage方法创建显示图像
   self.CREATEDRAWIMAGE
@@ -1025,11 +1049,12 @@ PRO raftrecognize__define
     rgbType : 0, $
     imageDims : LONARR(2), $
     oriData  : PTR_NEW(), $;图像数据
-    ;conData  : PTR_NEW(), $;生成的海岸线数据
+    conData  : PTR_NEW(), $;结果数据
+    groundall: PTR_NEW(), $;标签数据
     oWindow : OBJ_NEW(), $;显示窗口
     oImage  : OBJ_NEW(), $;显示图像的对象
     oRect   : OBJ_NEW(), $;放大缩小矩形对象
-    ;oContour   : OBJ_NEW(), $;生成海岸线对象
+    cImage   : OBJ_NEW(), $;生成结果图像对象
     DrawID: 0L $
   }
 END
