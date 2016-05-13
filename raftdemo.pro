@@ -3,4 +3,5 @@ obj = obj_new("raftrecognize",'C:\Users\name\IDLWorkspace83\raftrecognize\data\t
 obj->superclassfy
 obj->filterPlaque
 obj->dilateerode
+obj->raster_to_vector
 end

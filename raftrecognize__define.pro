@@ -181,10 +181,10 @@ PRO raftrecognize::example_glt_usage
     subset=dims, r_fid=r_fid
 END
 ;参数设置
-PRO raftrecognize::GetProperty, initFlag = initFlag,hdffile = hdffile,hbasename = hbasename
+PRO raftrecognize::GetProperty, initFlag = initFlag,infile = infile,shapefile = shapefile
   initFlag= self.INITFLAG
-  hdffile= self.hdffile
-  hbasename= self.hbasename
+  infile= self.infile
+  shapefile= self.shapefile
 END
 ;**********************************************************************
 ;todo主程序：还要拆分
@@ -244,7 +244,7 @@ PRO raftrecognize::superclassfy
   gaborsize = SIZE(GaborY)
   PRINT,gaborsize[2]
   rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
-  trainingnum=CEIL(gaborsize[2]*0.1);  %取30%的点
+  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
   index=rand[0:trainingnum-1];%训练样本的对应的序号
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
@@ -769,6 +769,86 @@ FUNCTION raftrecognize::confmat,Y,T
   ENDFOR
   RETURN,Carray
 END
+;******************************************************************
+;TODO 栅格转矢量
+;******************************************************************
+PRO raftrecognize::raster_to_vector
+  COMPILE_OPT idl2
+  COMPILE_OPT strictarr
+  ;ENVI调用初始化
+  ENVI,/restore_base_save_files
+  ENVI_BATCH_INIT
+  self.tmpfile = DIALOG_PICKFILE(FILE=self.rbasename+'_tmp.tif',title='Save temporary TIFF')
+  if strcmp(self.tmpfile,'') eq 1 then begin
+  ENVI_BATCH_EXIT
+  RETURN
+  endif
+  self.filedir = FILE_DIRNAME(self.tmpfile)
+  cdata = *(self.conData)
+  ;WRITE_TIFF,self.tmpfile,bytscl(cdata),GEOTIFF=GeoKeys
+  WRITE_TIFF,self.tmpfile,bytscl(cdata),GEOTIFF=GeoKeys
+  ;originImg=READ_TIFF(self.infile,R, G, B,GEOTIFF=GeoKeys,INTERLEAVE = 0)
+  ;打开图像文件  ;
+  ENVI_OPEN_FILE, self.tmpfile, r_fid=fid
+  IF (fid EQ -1) THEN BEGIN
+    ENVI_BATCH_EXIT
+    RETURN
+  ENDIF
+  ;
+  ENVI_FILE_QUERY, fid, dims=dims,nb = nb
+  ;对第一个波段进行计算
+  pos = [0]
+  ;将灰度值为1的转换为vector
+  values = [255]
+  ;
+  l_name = 'zeroValue'
+  ;evffile = FILE_DIRNAME(file)+'\img2vec.evf'
+  evffile = self.filedir + '\' +self.rbasename +'.evf'
+  ;
+  ; 栅格转换为矢量
+  ;
+  ENVI_DOIT, 'rtv_doit', $
+    fid=fid, pos=pos, dims=dims, $
+    IN_MEMORY = LINDGEN(N_ELEMENTS(values)), $
+    values=values, l_name=l_name, $
+    out_names=evffile
+  ;evf转换为shp文件
+  self.shapefile = self.filedir + '\' +self.rbasename +'.shp'
+  EVF_ID = ENVI_EVF_OPEN(evffile)
+  ENVI_EVF_TO_SHAPEFILE, EVF_ID, self.shapefile
+  ENVI_EVF_CLOSE, EVF_ID
+  ; Select a file
+  self.prjfile =self.filedir + '\' +self.rbasename +'.prj'
+  ; 退出ENVI
+  ENVI_BATCH_EXIT
+  ;  result = FILE_TEST(self.shapefile, /DIRECTORY)
+  ;  IF result EQ 1 THEN BEGIN
+  ;    dialog=DIALOG_MESSAGE("栅格矢量化成功!")
+  ;  ENDIF
+END
+;******************************************************************
+;TODO 调用envi矢量编辑功能
+;******************************************************************
+PRO raftrecognize::edit_shape
+  COMPILE_OPT idl2
+  COMPILE_OPT strictarr
+  ;ENVI调用初始化
+  ENVI,/restore_base_save_files
+  ENVI_BATCH_INIT
+  ;打开EVF文件
+  ;  evf_id = ENVI_EVF_OPEN("D:\img2vec.evf")
+  ;  l_name = 'zeroValue'
+  ;  envi_evf_info,evf_id,DATA_TYPE=integer,LAYER_NAME=l_name
+  e = ENVI()
+  ; Create an ENVIVector from the shapefile data
+  ;vector1 = e.OpenVector("D:\example\pre_line.shp")
+  vector = e.OpenVector(self.shapefile)
+  raster = e.OpenRaster(self.infile)
+  view = e.GetView()
+  layer = view.CreateLayer(vector)
+  ;layer1 = view.CreateLayer(vector1)
+  layer2 = view.CreateLayer(raster)
+END
 ;参数设置
 PRO raftrecognize::SetProperty, mouseType = mouseType,tmpfile = tmpfile,filedir = filedir
   self.MOUSETYPE= mouseType
@@ -1024,6 +1104,9 @@ END
 FUNCTION raftrecognize::INIT,infile,drawID
   ;
   self.INFILE = infile
+  FILEEXTRACT = strsplit(self.INFILE,'.',/EXTRACT)
+  self.filetype = FILEEXTRACT[1]
+  self.rbasename = FILE_BASENAME(self.infile, '.'+self.filetype)
   labeldata = []
   self.groundall = ptr_new(labeldata,/n)
   ;传入的drawID
@@ -1045,8 +1128,11 @@ PRO raftrecognize__define
     infile: '' , $
     hdffile: '' , $
     tmpfile: '' , $
+    shapefile: '' , $
+    prjfile: '' , $
     filedir: '' , $
-    hbasename: '' , $
+    filetype: '' , $
+    rbasename: '' , $
     rgbType : 0, $
     imageDims : LONARR(2), $
     oriData  : PTR_NEW(), $;图像数据
