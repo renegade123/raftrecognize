@@ -22,7 +22,7 @@ function bwareaopen,map
   ;i=image(BYTSCL(result), /CURRENT, LAYOUT=[3,1,2], TITLE='最大的块')
 
   ;找到像元数大于1000的块，并显示
-  label = locs[WHERE(hist GE 800)]
+  label = locs[WHERE(hist GE 700)]
   sz = SIZE(map, /DIMENSIONS)
   result = BYTARR(sz[0], sz[1])
   FOR i=0,N_ELEMENTS(label)-1 DO BEGIN

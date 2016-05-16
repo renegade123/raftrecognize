@@ -5,14 +5,14 @@ PRO raftrecgnize
   originimg = originimg/255.0
   originimg = TRANSPOSE(ROTATE(originimg,1))
   ;img = originimg[500:799,500:799]
-  img = originimg
+  img = originimg[500:699,500:799]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
   groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
   ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
 
-  ;groundall=groundall[501:800,501:800];
+  groundall=groundall[500:699,500:799];
   
   ;下采样窗大小
   winsize=3
@@ -81,18 +81,18 @@ PRO raftrecgnize
     ww = mres
     PredictY[*,i]=index_lab
   ENDFOR
-  map=vectortoimage(irow,icol,PredictY,winsize);%预测标签向量变为矩阵，并上采样
+  map=vectortoimage(icol,irow,PredictY,winsize);%预测标签向量变为矩阵，并上采样
   ;******************************************************************************
   ;%后处理：腐蚀、膨胀
   fg=DOUBLE(bwareaopen(map));
   SE1 = REPLICATE(1, 8, 8);
   SE2 = REPLICATE(1, 4, 4);
   ;MORPH_CLOSE和MORPH_OPEN
-  fg_map = make_array(irow+16,irow+16,VALUE=0,/DOUBLE)
-  fg_map[8:irow+7,8:irow+7] = fg
+  fg_map = make_array(icol+16,irow+16,VALUE=0,/DOUBLE)
+  fg_map[8:icol+7,8:irow+7] = fg
   fg_dilate=DILATE(fg_map,SE1);%膨胀  腐蚀是erode膨胀是dilate
   fg_erode=ERODE(fg_dilate,SE1);%腐蚀
-  map2=double(fg_erode[8:irow+7,8:irow+7]);%最终分类结果
+  map2=double(fg_erode[8:icol+7,8:irow+7]);%最终分类结果
   aimg = image(img,/CURRENT, LAYOUT=[3,2,1], TITLE='原图')
   gimg = image(groundall,/CURRENT, LAYOUT=[3,2,2], TITLE='groundall')
   amap = image(map,/CURRENT, LAYOUT=[3,2,3], TITLE="初始图像")

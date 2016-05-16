@@ -4,7 +4,7 @@ FUNCTION getarray_mean_std,stdimg,label,winsize
   image_size = imgsize[1]
   image_size2 = imgsize[2]
   num_images = 1
-  num_patches=FLOOR(image_size/sz)*FLOOR(image_size/sz);
+  num_patches=FLOOR(image_size/sz)*FLOOR(image_size2/sz);
   totalsamples = 0;
   ;% extract subimages at random from this image to make data vector X
   ;% Step through the images
