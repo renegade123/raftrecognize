@@ -7,26 +7,29 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
   gsize= SIZE(gaborArray);
   u = gsize[1]
   v = gsize[2]
+  imgsize = SIZE(img);
+  n = imgsize[1]
+  m = imgsize[2]
   gaborResult = PTRARR(u,v,/ALLOCATE_HEAP);
-  dimg = dcomplex(img,MAKE_ARRAY(300,300,value=0,/double))
-  gaborReal = MAKE_ARRAY(300,300,value=0,/double)
-  gaborIm = MAKE_ARRAY(300,300,value=0,/double)
-  gabor1 = MAKE_ARRAY(300,300,value=0,/double)
-  gabor2 = MAKE_ARRAY(300,300,value=0,/double)
-  gabor3 = MAKE_ARRAY(300,300,value=0,/double)
-  gabor4 = MAKE_ARRAY(300,300,value=0,/double)
+  dimg = dcomplex(img,MAKE_ARRAY(n,m,value=0,/double))
+  gaborReal = MAKE_ARRAY(n,m,value=0,/double)
+  gaborIm = MAKE_ARRAY(n,m,value=0,/double)
+  gabor1 = MAKE_ARRAY(n,m,value=0,/double)
+  gabor2 = MAKE_ARRAY(n,m,value=0,/double)
+  gabor3 = MAKE_ARRAY(n,m,value=0,/double)
+  gabor4 = MAKE_ARRAY(n,m,value=0,/double)
   
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
-      ;*(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_TRUNCATE);
-      a = *(gaborArray[i,j])
-      gabor1 = convol_fft(real_part(dimg),real_part(*(gaborArray[i,j])))
-      gabor2 = convol_fft(real_part(dimg),IMAGINARY(*(gaborArray[i,j])))
-      gabor3 = convol_fft(IMAGINARY(dimg),IMAGINARY(*(gaborArray[i,j])))
-      gabor4 = convol_fft(IMAGINARY(dimg),real_part(*(gaborArray[i,j])))
-      gaborReal = gabor1 - gabor3
-      gaborIm = gabor2 + gabor4
-      *(gaborResult[i,j]) = dcomplex(gaborReal,gaborIm)
+      *(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_TRUNCATE);
+;      a = *(gaborArray[i,j])
+;      gabor1 = convol_fft(real_part(dimg),real_part(*(gaborArray[i,j])))
+;      gabor2 = convol_fft(real_part(dimg),IMAGINARY(*(gaborArray[i,j])))
+;      gabor3 = convol_fft(IMAGINARY(dimg),IMAGINARY(*(gaborArray[i,j])))
+;      gabor4 = convol_fft(IMAGINARY(dimg),real_part(*(gaborArray[i,j])))
+;      gaborReal = gabor1 - gabor3
+;      gaborIm = gabor2 + gabor4
+;      *(gaborResult[i,j]) = dcomplex(gaborReal,gaborIm)
       ;print,"conv2"+1
       ; J{u,v} = filter2(G{u,v},I);
     ENDFOR

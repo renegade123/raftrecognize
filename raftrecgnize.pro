@@ -4,14 +4,15 @@ PRO raftrecgnize
   HELP,originimg
   originimg = originimg/255.0
   originimg = TRANSPOSE(ROTATE(originimg,1))
-  img = originimg[500:799,500:799]
+  ;img = originimg[500:799,500:799]
+  img = originimg
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
   groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
   ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
 
-  groundall=groundall[501:800,501:800];
+  ;groundall=groundall[501:800,501:800];
   
   ;下采样窗大小
   winsize=3
@@ -29,7 +30,7 @@ PRO raftrecgnize
   featureMap = *feature[0]
   featureVector = *feature[1]
   ;将cell存储特征转变为矩阵格式
-  test_gabor=MAKE_ARRAY(irow,icol,40,VALUE=0,/DOUBLE);
+  test_gabor=MAKE_ARRAY(icol,irow,40,VALUE=0,/DOUBLE);
   t=0;
   FOR i=0,4 DO BEGIN
     FOR j=0,7 DO BEGIN
