@@ -50,7 +50,7 @@ FUNCTION gaborFeatures,img,gaborArray,d1,d2
       gaborAbsptr = *(gaborResult[i,j])
       gaborAbs = ABS(gaborAbsptr);
       ;      gaborAbs = downsample(gaborAbs,d1);
-      ;      gaborAbs = downsample(TRANSPOSE(gaborAbs),d2);
+            gaborAbs = TRANSPOSE(gaborAbs)
       ;gaborAbs = downsample(gaborAbs,1,1)
       gsize = SIZE(gaborAbs)
       gaborAbs = REFORM(TRANSPOSE(gaborAbs),gsize[1]*gsize[2],1);

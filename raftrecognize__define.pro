@@ -128,58 +128,8 @@ PRO raftrecognize::getline,inifile
   WRITE_TIFF,"d:\test.tif",phi
 END
 
-;todo 云掩膜
-PRO raftrecognize::cloudMask
-  COMPILE_OPT idl2
-  ENVI, /restore_base_save_files
-  ENVI_BATCH_INIT
-  self.hdffile = DIALOG_PICKFILE(title='Pick .hdf File',filter = ['*.hdf'])
-  self.hbasename = FILE_BASENAME(self.hdffile, '.hdf')
-END
 
-PRO raftrecognize::example_glt_usage
-  COMPILE_OPT strictarr
-  ENVI, /RESTORE_BASE_SAVE_FILES
-  ENVI_BATCH_INIT, LOG_FILE = 'batch.log'
-  ;  Select an image and it's associated input geometry.
-  ;  convert mask to tiff
-  ENVI_SELECT, title='Please select an image to georeference', $
-    dims=dims, fid=fid, pos=pos
-  IF fid EQ -1 THEN RETURN
-  ENVI_SELECT, title='Please select the longitude band', $
-    fid=x_fid, dims=dims, pos=x_pos, /band_only, /no_dims
-  IF x_fid EQ -1 THEN RETURN
-  ENVI_SELECT, title='Please select the latitude band', $
-    fid=y_fid, dims=dims, pos=y_pos, /band_only, /no_dims
-  IF y_fid EQ -1 THEN RETURN
 
-  ;  Figure out what UTM zone we're in.
-  query_dims = [-1L, LONG(dims[2]/2), LONG(dims[2]/2), LONG(dims[4]/2),$
-    LONG(dims[4]/2)]
-  lat_lon = [ENVI_GET_DATA(fid=y_fid, dims=query_dims, pos=y_pos), $
-    ENVI_GET_DATA(fid=x_fid, dims=query_dims, pos=x_pos)]
-  zone = FIX(31.0 + lat_lon[1]/6.0)
-  south = (lat_lon[0] LT 0)
-
-  ;  Make the GLT.
-  out_name=self.filedir+self.basename+'_glt.dat'
-  pixel_size=6000.0D
-  rotation=0.0
-  i_proj = ENVI_PROJ_CREATE(/geographic)
-  o_proj = ENVI_PROJ_CREATE(/utm, south=south,ZONE=zone)
-  ENVI_DOIT, 'ENVI_GLT_DOIT', i_proj=i_proj, $
-    o_proj=o_proj, out_name=out_name, $
-    pixel_size=pixel_size, r_fid=glt_fid, $
-    rotation=0.0, x_fid=x_fid, y_fid=y_fid, $
-    x_pos=x_pos, y_pos=y_pos
-  IF glt_fid EQ -1 THEN RETURN
-
-  ;  Georeference the image from the GLT.
-  out_name=self.filedir+self.basename+'_georef.tif'
-  ENVI_DOIT, 'envi_georef_from_glt_doit', fid=fid, $
-    glt_fid=glt_fid, out_name=out_name, pos=pos, $
-    subset=dims, r_fid=r_fid
-END
 ;参数设置
 PRO raftrecognize::GetProperty, initFlag = initFlag,infile = infile,shapefile = shapefile
   initFlag= self.INITFLAG
@@ -195,14 +145,14 @@ PRO raftrecognize::superclassfy
   HELP,originimg
   originimg = originimg/255.0
   originimg = TRANSPOSE(ROTATE(originimg,1))
-  img = originimg[500:799,500:799]
+  img = originimg[500:699,500:799]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
   groundall = self.read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
   ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
 
-  groundall=groundall[500:799,500:799];
+  groundall=groundall[500:699,500:799];
   *(self.groundall) = groundall
   ;下采样窗大小
   winsize=3
@@ -220,7 +170,7 @@ PRO raftrecognize::superclassfy
   featureMap = *feature[0]
   featureVector = *feature[1]
   ;将cell存储特征转变为矩阵格式
-  test_gabor=MAKE_ARRAY(irow,icol,40,VALUE=0,/DOUBLE);
+  test_gabor=MAKE_ARRAY(icol,irow,40,VALUE=0,/DOUBLE);
   t=0;
   FOR i=0,4 DO BEGIN
     FOR j=0,7 DO BEGIN
@@ -271,7 +221,7 @@ PRO raftrecognize::superclassfy
     ww = mres
     PredictY[*,i] = index_lab
   ENDFOR
-  *(self.CONDATA) = self.vectortoimage(irow,icol,PredictY,winsize);%预测标签向量变为矩阵，并上采样
+  *(self.CONDATA) = self.vectortoimage(icol,irow,PredictY,winsize);%预测标签向量变为矩阵，并上采样
   cdata = *(self.CONDATA)
   ;self.cimage.SETPROPERTY, hide =0,data = bytscl(cdata)
   self.oimage.SETPROPERTY,data = bytscl(cdata)
@@ -420,26 +370,29 @@ FUNCTION raftrecognize::gaborFeatures,img,gaborArray,d1,d2
   gsize= SIZE(gaborArray);
   u = gsize[1]
   v = gsize[2]
+  imgsize = SIZE(img);
+  n = imgsize[1]
+  m = imgsize[2]
   gaborResult = PTRARR(u,v,/ALLOCATE_HEAP);
-  dimg = DCOMPLEX(img,MAKE_ARRAY(300,300,value=0,/double))
-  gaborReal = MAKE_ARRAY(300,300,value=0,/double)
-  gaborIm = MAKE_ARRAY(300,300,value=0,/double)
-  gabor1 = MAKE_ARRAY(300,300,value=0,/double)
-  gabor2 = MAKE_ARRAY(300,300,value=0,/double)
-  gabor3 = MAKE_ARRAY(300,300,value=0,/double)
-  gabor4 = MAKE_ARRAY(300,300,value=0,/double)
+  dimg = DCOMPLEX(img,MAKE_ARRAY(n,m,value=0,/double))
+  gaborReal = MAKE_ARRAY(n,m,value=0,/double)
+  gaborIm = MAKE_ARRAY(n,m,value=0,/double)
+  gabor1 = MAKE_ARRAY(n,m,value=0,/double)
+  gabor2 = MAKE_ARRAY(n,m,value=0,/double)
+  gabor3 = MAKE_ARRAY(n,m,value=0,/double)
+  gabor4 = MAKE_ARRAY(n,m,value=0,/double)
 
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
-      ;*(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_TRUNCATE);
-      a = *(gaborArray[i,j])
-      gabor1 = convol_fft(real_part(dimg),real_part(*(gaborArray[i,j])))
-      gabor2 = convol_fft(real_part(dimg),IMAGINARY(*(gaborArray[i,j])))
-      gabor3 = convol_fft(IMAGINARY(dimg),IMAGINARY(*(gaborArray[i,j])))
-      gabor4 = convol_fft(IMAGINARY(dimg),real_part(*(gaborArray[i,j])))
-      gaborReal = gabor1 - gabor3
-      gaborIm = gabor2 + gabor4
-      *(gaborResult[i,j]) = DCOMPLEX(gaborReal,gaborIm)
+      *(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_TRUNCATE);
+;      a = *(gaborArray[i,j])
+;      gabor1 = convol_fft(real_part(dimg),real_part(*(gaborArray[i,j])))
+;      gabor2 = convol_fft(real_part(dimg),IMAGINARY(*(gaborArray[i,j])))
+;      gabor3 = convol_fft(IMAGINARY(dimg),IMAGINARY(*(gaborArray[i,j])))
+;      gabor4 = convol_fft(IMAGINARY(dimg),real_part(*(gaborArray[i,j])))
+;      gaborReal = gabor1 - gabor3
+;      gaborIm = gabor2 + gabor4
+;      *(gaborResult[i,j]) = DCOMPLEX(gaborReal,gaborIm)
       ;print,"conv2"+1
       ; J{u,v} = filter2(G{u,v},I);
     ENDFOR
@@ -447,9 +400,7 @@ FUNCTION raftrecognize::gaborFeatures,img,gaborArray,d1,d2
   ;Feature Extraction
   featureMap = PTRARR(u,v,/ALLOCATE_HEAP)
   ;Extract feature vector from input image
-  imgsize = SIZE(img);
-  n = imgsize[1]
-  m = imgsize[2]
+
   s = (n*m)/(d1*d2);
   l = s*u*v;
   featureVector = MAKE_ARRAY(l,1,value=0,/double);
@@ -460,7 +411,7 @@ FUNCTION raftrecognize::gaborFeatures,img,gaborArray,d1,d2
       gaborAbsptr = *(gaborResult[i,j])
       gaborAbs = ABS(gaborAbsptr);
       ;      gaborAbs = downsample(gaborAbs,d1);
-      ;      gaborAbs = downsample(TRANSPOSE(gaborAbs),d2);
+      gaborAbs = TRANSPOSE(gaborAbs)
       ;gaborAbs = downsample(gaborAbs,1,1)
       gsize = SIZE(gaborAbs)
       gaborAbs = REFORM(TRANSPOSE(gaborAbs),gsize[1]*gsize[2],1);
@@ -485,7 +436,7 @@ FUNCTION raftrecognize::getarray_mean,images,label,winsize
   image_size = imgsize[1]
   image_size2 = imgsize[2]
   num_images = imgsize[3]
-  num_patches=FLOOR(image_size/sz)*FLOOR(image_size/sz);
+  num_patches=FLOOR(image_size/sz)*FLOOR(image_size2/sz);
   totalsamples = 0;
   ;% extract subimages at random from this image to make data vector X
   ;% Step through the images
@@ -515,7 +466,7 @@ FUNCTION raftrecognize::getarray_mean_std,stdimg,label,winsize
   image_size = imgsize[1]
   image_size2 = imgsize[2]
   num_images = 1
-  num_patches=FLOOR(image_size/sz)*FLOOR(image_size/sz);
+  num_patches=FLOOR(image_size/sz)*FLOOR(image_size2/sz);
   totalsamples = 0;
   ;% extract subimages at random from this image to make data vector X
   ;% Step through the images
@@ -827,6 +778,23 @@ PRO raftrecognize::raster_to_vector
   ;  ENDIF
 END
 ;******************************************************************
+;TODO 原始海岸线
+;******************************************************************
+PRO raftrecognize::pre_line,vert=vert,i = i
+  ;graph=polygon(vert[0,*],vert[0,*],'-r2')
+  ;ENVI_CONVERT_FILE_COORDINATES,fid,xmap,ymap,vert[0,*],vert[1,*]
+  ;map_coord = [xmap,ymap]
+  ;plot,vert
+  ;self.OPRELINE.SETPROPERTY, hide =0,data = vert
+  ;tmppolygon
+  tmppolygon = OBJ_NEW('IDLgrPolygon',data=vert,style =1,thick=1,color = [255,0,0])
+  self.shapemodel.ADD,tmppolygon
+END
+
+PRO raftrecognize::pre_line_show
+  self.OWINDOW.draw
+END
+;******************************************************************
 ;TODO 调用envi矢量编辑功能
 ;******************************************************************
 PRO raftrecognize::edit_shape
@@ -1061,12 +1029,12 @@ PRO raftrecognize::CreateDrawImage
   ENDIF
 
   ;self.IMAGEDIMS = imageInfo.DIMENSIONS
-  self.IMAGEDIMS = [300,300]
+  self.IMAGEDIMS = [200,300]
   data =READ_bmp(self.INFILE)
   ;data =READ_TIFF(self.INFILE,GEOTIFF=GeoKeys)
   ;TileData = BYTSCL(data)
   data = TRANSPOSE(ROTATE(data,1))
-  data = data[500:799,500:799]
+  data = data[500:699,500:799]
   self.ORIDATA = PTR_NEW(data,/no_Copy)
   initialLSF=2*MAKE_ARRAY(290,280,/double,VALUE=1)
   initialLSF[0:289,0:279]=-2
@@ -1091,8 +1059,9 @@ PRO raftrecognize::CreateDrawImage
 
   ;oTopModel = OBJ_NEW('IDLgrModel')
   oModel = OBJ_NEW('IDLgrModel')
+  self.shapemodel = OBJ_NEW('IDLgrModel')
   ;lModel = OBJ_NEW('IDLgrModel')
-  oModel.ADD, [self.OIMAGE,self.ORECT,self.cImage]
+  oModel.ADD, [self.OIMAGE,self.ORECT,self.cImage,self.shapemodel]
   ;lModel.add,self.OPRELINE
   ;  lModel->Rotate,[1,0,0],180
   ;  lModel->Rotate,[0,0,1],180
@@ -1140,6 +1109,7 @@ PRO raftrecognize__define
     groundall: PTR_NEW(), $;标签数据
     oWindow : OBJ_NEW(), $;显示窗口
     oImage  : OBJ_NEW(), $;显示图像的对象
+    shapemodel : OBJ_NEW(), $;显示矢量图像
     oRect   : OBJ_NEW(), $;放大缩小矩形对象
     cImage   : OBJ_NEW(), $;生成结果图像对象
     DrawID: 0L $
