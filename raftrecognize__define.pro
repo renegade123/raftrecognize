@@ -129,8 +129,11 @@ PRO raftrecognize::getline,inifile
 END
 
 
-
 ;参数设置
+PRO raftrecognize::SetProperty, mouseType = mouseType
+  self.MOUSETYPE= mouseType
+END
+;参数获取
 PRO raftrecognize::GetProperty, initFlag = initFlag,infile = infile,shapefile = shapefile
   initFlag= self.INITFLAG
   infile= self.infile
@@ -816,12 +819,6 @@ PRO raftrecognize::edit_shape
   layer = view.CreateLayer(vector)
   ;layer1 = view.CreateLayer(vector1)
   layer2 = view.CreateLayer(raster)
-END
-;参数设置
-PRO raftrecognize::SetProperty, mouseType = mouseType,tmpfile = tmpfile,filedir = filedir
-  self.MOUSETYPE= mouseType
-  self.tmpfile = tmpfile
-  self.filedir = filedir
 END
 
 ;TODO 鼠标滚轮时的事件

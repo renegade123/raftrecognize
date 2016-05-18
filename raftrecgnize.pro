@@ -5,17 +5,17 @@ PRO raftrecgnize
   originimg = originimg/255.0
   originimg = TRANSPOSE(ROTATE(originimg,1))
   ;img = originimg[500:799,500:799]
-  img = originimg[500:999,500:899]
+  img = originimg[500:799,500:699]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
   groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
   ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
 
-  groundall=groundall[500:999,500:899]
+  groundall=groundall[500:799,500:699]
   
   ;下采样窗大小
-  winsize=3
+  winsize=2
   ;类别两类
   numClasses=2
   isize = SIZE(img)
