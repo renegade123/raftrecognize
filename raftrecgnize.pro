@@ -132,3 +132,9 @@ FUNCTION min_max_norm,min_value,max_value,x
   ENDFOR
   RETURN,y
 END
+FUNCTION get_vertex,x,y,n,m
+  cx = (x/3)*3
+  cy = (y/3)*3
+  index = cx
+  RETURN,[cx,cy]
+END
