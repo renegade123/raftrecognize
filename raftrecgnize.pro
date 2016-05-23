@@ -5,17 +5,17 @@ PRO raftrecgnize
   originimg = originimg/255.0
   originimg = TRANSPOSE(ROTATE(originimg,1))
   ;img = originimg[500:799,500:799]
-  img = originimg[500:799,500:699]
+  img = originimg[500:799,500:799]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
   groundall = read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
   ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
   ;groundall=groundall(1:100,1:100);
 
-  groundall=groundall[500:799,500:699]
+  groundall=groundall[500:799,500:799]
   
   ;下采样窗大小
-  winsize=2
+  winsize=3
   ;类别两类
   numClasses=2
   isize = SIZE(img)
@@ -54,7 +54,9 @@ PRO raftrecgnize
   gaborsize = SIZE(GaborY)
   PRINT,gaborsize[2]
   rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
-  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
+  rand1 = FIX(300*RANDOMU(seed,50));%产生随机数
+  rand2 = FIX(300*RANDOMU(seed,50));%产生随机数
+  trainingnum=CEIL(gaborsize[2]*0.25);  %取30%的点
   index=rand[0:trainingnum-1];%训练样本的对应的序号
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
@@ -135,6 +137,6 @@ END
 FUNCTION get_vertex,x,y,n,m
   cx = (x/3)*3
   cy = (y/3)*3
-  index = cx
-  RETURN,[cx,cy]
+  index = (x/3)*(m/3)+(y/3)
+  RETURN,[cx,cy,index]
 END
