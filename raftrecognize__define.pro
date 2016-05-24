@@ -797,6 +797,27 @@ END
 PRO raftrecognize::pre_line_show
   self.OWINDOW.draw
 END
+;
+PRO raftrecognize::dataInitial
+  sampleArray = [ ]
+  self.sampleData = PTR_NEW(sampleArray,/no_Copy)
+  self.sampleLINE.SETPROPERTY,hide = 1
+  ;self.oContour.SETPROPERTY,hide = 1,data = sampleArray
+  self.OWINDOW.Draw
+END
+pro raftrecognize::sample_polygon
+  vert = *(self.sampleData)
+  sz = SIZE(vert)
+  PRINT,sz[1]
+  row = sz[1]/2
+  vert=REFORM(vert,[2,row])
+  tmppolygon = OBJ_NEW('IDLgrPolygon',data=vert,style =1,thick=1,color = [255,0,0])
+  self.samplemodel.ADD,tmppolygon
+  sampleArray = [ ]
+  self.sampleData = PTR_NEW(sampleArray,/no_Copy)
+  self.sampleLINE.SETPROPERTY,hide = 1
+  self.OWINDOW.draw
+end
 ;******************************************************************
 ;TODO 调用envi矢量编辑功能
 ;******************************************************************
@@ -851,6 +872,16 @@ FUNCTION raftrecognize::CalRectPoints,ulPos,drPos
   RETURN,[[lLoc],[lLoc[0],rLoc[1]],$
     [rLoc],[rLoc[0],lLoc[1]]]
 END
+;******************************************************************************
+;todo:返回实际坐标
+;******************************************************************************
+FUNCTION raftrecognize::CalRealCoord,ulPos
+
+  self.OWINDOW.GETPROPERTY, dimensions = winDims,graphics_tree = oView
+  oView.GETPROPERTY, viewPlane_Rect = viewRect
+  lLoc = viewRect[0:1]+[ulPos[0],ulPos[1]]*viewRect[2:3]/winDims
+  RETURN,lLoc
+END
 ;鼠标点击时的事件
 PRO raftrecognize::MousePress,xpos,ypos
   COMPILE_OPT idl2
@@ -870,10 +901,19 @@ PRO raftrecognize::MousePress,xpos,ypos
     END
     ;画折线
     4: BEGIN
-      data = self.initlinedata
-      self.INITLINE.SETPROPERTY, data = data
+       realCoord = self.CalRealCoord(self.MOUSELOC[0:1])
+      *(self.sampleData) = [*(self.sampleData),realCoord]
+      data = *(self.sampleData)
+      sz = SIZE(data)
+      PRINT,sz[1]
+      row = sz[1]/2
+      data=REFORM(data,[2,row])
+      roi_obj = OBJ_NEW("IDLanROI",data,type = 1)
+      self.oimage.GETPROPERTY, DIMENSIONS = dim
+      initContour = roi_obj->ComputeMask(DIMENSIONS=dim,MASK_RULE=2)
+      self.sampleLINE.SETPROPERTY, data = data,hide = 0
       self.OWINDOW.Draw
-    END
+      end
     ELSE:
   ENDCASE
 END
@@ -938,11 +978,11 @@ PRO raftrecognize::MouseRelease,xpos,ypos
 
     END
     ;画折线
-    4: BEGIN
-      data = self.CALRECTPOINTS(self.MOUSELOC,curLoc)
-      self.INITLINE.SETPROPERTY, data = data
-      self.OWINDOW.Draw
-    END
+;    4: BEGIN
+;      data = self.CALRECTPOINTS(self.MOUSELOC,curLoc)
+;      self.INITLINE.SETPROPERTY, data = data
+;      self.OWINDOW.Draw
+;    END
     ELSE:
   ENDCASE
 
@@ -1053,12 +1093,17 @@ PRO raftrecognize::CreateDrawImage
     style =1,$
     thick=1,$
     color = [230,0,0])
-
+  ;初始海岸线选择
+  self.SAMPLELINE = OBJ_NEW('IDLgrPolyline', $
+    linestyle=0,$
+    thick=1,$
+    color = [0,255,0],/hide)
   ;oTopModel = OBJ_NEW('IDLgrModel')
   oModel = OBJ_NEW('IDLgrModel')
   self.shapemodel = OBJ_NEW('IDLgrModel')
+  self.samplemodel = OBJ_NEW('IDLgrModel')
   ;lModel = OBJ_NEW('IDLgrModel')
-  oModel.ADD, [self.OIMAGE,self.ORECT,self.cImage,self.shapemodel]
+  oModel.ADD, [self.OIMAGE,self.ORECT,self.cImage,self.shapemodel,self.SAMPLELINE,self.samplemodel]
   ;lModel.add,self.OPRELINE
   ;  lModel->Rotate,[1,0,0],180
   ;  lModel->Rotate,[0,0,1],180
@@ -1104,9 +1149,12 @@ PRO raftrecognize__define
     oriData  : PTR_NEW(), $;图像数据
     conData  : PTR_NEW(), $;结果数据
     groundall: PTR_NEW(), $;标签数据
+    sampleData: PTR_NEW(), $;采样区域顶点
     oWindow : OBJ_NEW(), $;显示窗口
     oImage  : OBJ_NEW(), $;显示图像的对象
     shapemodel : OBJ_NEW(), $;显示矢量图像
+    samplemodel : OBJ_NEW(), $;显示采样结果
+    sampleline : OBJ_NEW(), $;采样线
     oRect   : OBJ_NEW(), $;放大缩小矩形对象
     cImage   : OBJ_NEW(), $;生成结果图像对象
     DrawID: 0L $
