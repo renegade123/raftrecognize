@@ -151,12 +151,14 @@ PRO raftrecognize::superclassfy
   img = originimg[500:699,500:799]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
-  groundall = self.read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
-  ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
-  ;groundall=groundall(1:100,1:100);
-
-  groundall=groundall[500:699,500:799];
-  *(self.groundall) = groundall
+;  groundall = self.read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+;  ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
+;  ;groundall=groundall(1:100,1:100);
+;
+;  groundall=groundall[500:699,500:799];
+;  *(self.groundall) = groundall
+ groundall = *(self.groundall)
+ ;groundall = TRANSPOSE(ROTATE(groundall,1))
   ;下采样窗大小
   winsize=3
   ;类别两类
@@ -210,9 +212,9 @@ PRO raftrecognize::superclassfy
   FOR i = 0,gaborsize[2]-1 DO BEGIN
     PRINT,i
     X = self.SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
-    seedD_one = TrainX[index_one,*];
+    seedD_one = TrainX[self.index_one,*];
     seedD_zero = TrainX[index_zero,*];
-    seedX_one = X[index_one,*];
+    seedX_one = X[self.index_one,*];
     seedX_zero = X[index_zero,*];
     Res_one = TestX[i,*]-seedD_one##seedX_one;
     Res_zero = TestX[i,*]-seedD_zero##seedX_zero;
@@ -797,7 +799,9 @@ END
 PRO raftrecognize::pre_line_show
   self.OWINDOW.draw
 END
-;
+;*******************************************************************************
+;人工采样
+;*******************************************************************************
 PRO raftrecognize::dataInitial
   sampleArray = [ ]
   self.sampleData = PTR_NEW(sampleArray,/no_Copy)
@@ -813,11 +817,44 @@ pro raftrecognize::sample_polygon
   vert=REFORM(vert,[2,row])
   tmppolygon = OBJ_NEW('IDLgrPolygon',data=vert,style =1,thick=1,color = [255,0,0])
   self.samplemodel.ADD,tmppolygon
+  roi_obj = OBJ_NEW("IDLanROI",vert,type = 2)
+  self.roi_group->Add,roi_obj
+  self.oimage.GETPROPERTY, DIMENSIONS = dim
+  initContour = roi_obj->ComputeMask(DIMENSIONS=dim,MASK_RULE=2)
   sampleArray = [ ]
   self.sampleData = PTR_NEW(sampleArray,/no_Copy)
   self.sampleLINE.SETPROPERTY,hide = 1
   self.OWINDOW.draw
 end
+;todo初始化海岸线栅格化(polyline to contour)
+PRO raftrecognize::dataRasterlize
+  self.oimage.GETPROPERTY, DIMENSIONS = dim
+  groundall = self.roi_group->ComputeMask(DIMENSIONS=dim,MASK_RULE=2)
+  ;  B = WHERE(initContour eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+  ;  initContour[b] = -2
+  ;  initContour[b_c] = 2
+  groundall = DOUBLE(groundall)
+  B = WHERE(groundall eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+  groundall[b] = 1
+  
+  WRITE_TIFF,"d:\test.tif",groundall
+  self.groundall = PTR_NEW(groundall)
+  ind = ARRAY_INDICES(groundall, B)
+  self.index_one = []
+  for i = 0,N_ELEMENTS(b) do begin
+    a = self.get_vertex,ind[0,i],ind[1,i],dim[0],dim[1]
+    self.index_one = [self.index_one,a[2]]
+  endfor
+  self.index_one = self.index_one[UNIQ(self.index_one, SORT(self.index_one))]
+;  ground = *(self.groundall)
+END
+;获取采样区域索引
+FUNCTION raftrecognize::get_vertex,x,y,n,m
+  cx = (x/3)*3
+  cy = (y/3)*3
+  index = (x/3)*(m/3)+(y/3)
+  RETURN,[cx,cy,index]
+END
 ;******************************************************************
 ;TODO 调用envi矢量编辑功能
 ;******************************************************************
@@ -908,9 +945,7 @@ PRO raftrecognize::MousePress,xpos,ypos
       PRINT,sz[1]
       row = sz[1]/2
       data=REFORM(data,[2,row])
-      roi_obj = OBJ_NEW("IDLanROI",data,type = 1)
-      self.oimage.GETPROPERTY, DIMENSIONS = dim
-      initContour = roi_obj->ComputeMask(DIMENSIONS=dim,MASK_RULE=2)
+      
       self.sampleLINE.SETPROPERTY, data = data,hide = 0
       self.OWINDOW.Draw
       end
@@ -1102,6 +1137,7 @@ PRO raftrecognize::CreateDrawImage
   oModel = OBJ_NEW('IDLgrModel')
   self.shapemodel = OBJ_NEW('IDLgrModel')
   self.samplemodel = OBJ_NEW('IDLgrModel')
+  self.roi_group = OBJ_NEW("IDLanROIGroup")
   ;lModel = OBJ_NEW('IDLgrModel')
   oModel.ADD, [self.OIMAGE,self.ORECT,self.cImage,self.shapemodel,self.SAMPLELINE,self.samplemodel]
   ;lModel.add,self.OPRELINE
@@ -1137,7 +1173,6 @@ PRO raftrecognize__define
     mouseLoc : FLTARR(2), $ ;
 
     infile: '' , $
-    hdffile: '' , $
     tmpfile: '' , $
     shapefile: '' , $
     prjfile: '' , $
@@ -1155,6 +1190,7 @@ PRO raftrecognize__define
     shapemodel : OBJ_NEW(), $;显示矢量图像
     samplemodel : OBJ_NEW(), $;显示采样结果
     sampleline : OBJ_NEW(), $;采样线
+    roi_group : OBJ_NEW(), $;roi群
     oRect   : OBJ_NEW(), $;放大缩小矩形对象
     cImage   : OBJ_NEW(), $;生成结果图像对象
     DrawID: 0L $
