@@ -151,13 +151,13 @@ PRO raftrecognize::superclassfy
   img = originimg[500:699,500:799]
   ;tvscl,img
   ;im=image(img, TITLE='Raft',/OVERPLOT)
-;  groundall = self.read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
-;  ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
-;  ;groundall=groundall(1:100,1:100);
-;
-;  groundall=groundall[500:699,500:799];
-;  *(self.groundall) = groundall
- groundall = *(self.groundall)
+  groundall = self.read_txt_data_file('C:\Users\name\IDLWorkspace83\raftrecognize\data\groundall.txt');%导入标签
+  ;groundall = read_txt_data_file('F:\IDLworkspace\raftrecognize\data\groundall.txt');%导入标签
+  ;groundall=groundall(1:100,1:100);
+
+  groundall=groundall[500:699,500:799];
+  *(self.groundall) = groundall
+ ;groundall = *(self.groundall)
  ;groundall = TRANSPOSE(ROTATE(groundall,1))
   ;下采样窗大小
   winsize=3
@@ -201,10 +201,13 @@ PRO raftrecognize::superclassfy
   rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
   trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
   index=rand[0:trainingnum-1];%训练样本的对应的序号
+  index = [*(self.index_one),*(self.index_zero)]
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
   index_one=WHERE(TrainY EQ 1);%训练样本中浮筏的标签
   index_zero=WHERE(TrainY EQ 0);%训练样本中背景的标签
+  index_one=*(self.index_one);%训练样本中浮筏的标签
+  index_zero=*(self.index_zero);%训练样本中背景的标签
   ;%稀疏表示分类器
   res=MAKE_ARRAY(1,2,VALUE=0,/DOUBLE);
   PredictY=MAKE_ARRAY(1,gaborsize[2],VALUE=0,/DOUBLE);%预测标签
@@ -212,9 +215,9 @@ PRO raftrecognize::superclassfy
   FOR i = 0,gaborsize[2]-1 DO BEGIN
     PRINT,i
     X = self.SimulOMP(TestX(i,*), TrainX, 1e-8, 5,1);
-    seedD_one = TrainX[self.index_one,*];
+    seedD_one = TrainX[index_one,*];
     seedD_zero = TrainX[index_zero,*];
-    seedX_one = X[self.index_one,*];
+    seedX_one = X[index_one,*];
     seedX_zero = X[index_zero,*];
     Res_one = TestX[i,*]-seedD_one##seedX_one;
     Res_zero = TestX[i,*]-seedD_zero##seedX_zero;
@@ -835,18 +838,44 @@ PRO raftrecognize::dataRasterlize
   ;  initContour[b_c] = 2
   groundall = DOUBLE(groundall)
   B = WHERE(groundall eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
-  groundall[b] = 1
-  
+;  groundall[b] = 1
+;  
   WRITE_TIFF,"d:\test.tif",groundall
   self.groundall = PTR_NEW(groundall)
-  ind = ARRAY_INDICES(groundall, B)
-  self.index_one = []
-  for i = 0,N_ELEMENTS(b) do begin
-    a = self.get_vertex,ind[0,i],ind[1,i],dim[0],dim[1]
-    self.index_one = [self.index_one,a[2]]
-  endfor
-  self.index_one = self.index_one[UNIQ(self.index_one, SORT(self.index_one))]
+;  ind = ARRAY_INDICES(groundall, B)
+;  self.index_one = []
+;  for i = 0,N_ELEMENTS(b) do begin
+;    a = self.get_vertex(ind[0,i],ind[1,i],dim[0],dim[1])
+;    self.index_one = [self.index_one,a[2]]
+;  endfor
+;  self.index_one = self.index_one[UNIQ(self.index_one, SORT(self.index_one))]
 ;  ground = *(self.groundall)
+END
+pro raftrecognize::get_index_one,ground = ground,index_one=index_one
+  ground = *(self.groundall)
+  
+  B = WHERE(ground eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+  ind = ARRAY_INDICES(ground, B)
+  index_one = [ ]
+  FOR i = 0,N_ELEMENTS(b)-1 DO BEGIN
+    a = self.get_vertex(ind[0,i],ind[1,i],self.imageDims[0],self.imageDims[1])
+    index_one = [index_one,a[2]]
+  ENDFOR
+  index_one = index_one[UNIQ(index_one, SORT(index_one))]
+  self.index_one = PTR_NEW(index_one,/no_Copy)
+  self.roi_group = OBJ_NEW("IDLanROIGroup")
+end
+PRO raftrecognize::get_index_zero
+  groundall = *(self.groundall)
+  B = WHERE(groundall eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+  ind = ARRAY_INDICES(groundall, B)
+  index_zero = [ ]
+  FOR i = 0,N_ELEMENTS(b)-1 DO BEGIN
+    a = self.get_vertex(ind[0,i],ind[1,i],self.imageDims[0],self.imageDims[1])
+    index_zero = [index_zero,a[2]]
+  ENDFOR
+  index_zero = index_zero[UNIQ(index_zero, SORT(index_zero))]
+  self.index_zero = PTR_NEW(index_zero,/no_Copy)
 END
 ;获取采样区域索引
 FUNCTION raftrecognize::get_vertex,x,y,n,m
@@ -1185,6 +1214,8 @@ PRO raftrecognize__define
     conData  : PTR_NEW(), $;结果数据
     groundall: PTR_NEW(), $;标签数据
     sampleData: PTR_NEW(), $;采样区域顶点
+    index_one : PTR_NEW(), $
+    index_zero : PTR_NEW(), $
     oWindow : OBJ_NEW(), $;显示窗口
     oImage  : OBJ_NEW(), $;显示图像的对象
     shapemodel : OBJ_NEW(), $;显示矢量图像
