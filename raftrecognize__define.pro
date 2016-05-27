@@ -157,8 +157,8 @@ PRO raftrecognize::superclassfy
 
   groundall=groundall[500:699,500:799];
   *(self.groundall) = groundall
- ;groundall = *(self.groundall)
- ;groundall = TRANSPOSE(ROTATE(groundall,1))
+  ;groundall = *(self.groundall)
+  ;groundall = TRANSPOSE(ROTATE(groundall,1))
   ;下采样窗大小
   winsize=3
   ;类别两类
@@ -187,6 +187,12 @@ PRO raftrecognize::superclassfy
   Gabor= self.getarray_mean(test_gabor,groundall,winsize);%Gabor特征下采样，并将每个像素点特征转变为一列存储
   GaborX = *Gabor[0]
   GaborY = *Gabor[1]
+  Gabor_one= self.getarray_mean(test_gabor,*(self.index_one),winsize);%Gabor特征下采样，并将每个像素点特征转变为一列存储
+  Gabor_oneX = *Gabor_one[0]
+  Gabor_oneY = *Gabor_one[1]
+  Gabor_zero= self.getarray_mean(test_gabor,*(self.index_zero),winsize);%Gabor特征下采样，并将每个像素点特征转变为一列存储
+  Gabor_zeroX = *Gabor_zero[0]
+  Gabor_zeroY = *Gabor_zero[1]
   GLCM= self.getarray_mean_std(img,groundall,winsize);%GLCM特征提取并下采样，并将每个像素点特征转变为一列存储
   GlcmX = *GLCM[0]
   GlcmY = *GLCM[1]
@@ -198,16 +204,18 @@ PRO raftrecognize::superclassfy
   ;%随机选取训练样本
   gaborsize = SIZE(GaborY)
   PRINT,gaborsize[2]
-  rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
-  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
-  index=rand[0:trainingnum-1];%训练样本的对应的序号
-  index = [*(self.index_one),*(self.index_zero)]
+;  rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
+;  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
+;  index=rand[0:trainingnum-1];%训练样本的对应的序号
+  index_one=WHERE(Gabor_oneY EQ 1);%训练样本中浮筏的标签
+  index_zero=WHERE(Gabor_zeroY EQ 1);%训练样本中背景的标签
+  index = [index_one,index_zero]
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
-  index_one=WHERE(TrainY EQ 1);%训练样本中浮筏的标签
-  index_zero=WHERE(TrainY EQ 0);%训练样本中背景的标签
-  index_one=*(self.index_one);%训练样本中浮筏的标签
-  index_zero=*(self.index_zero);%训练样本中背景的标签
+  index_one=WHERE(Gabor_oneY EQ 1);%训练样本中浮筏的标签
+  index_zero=WHERE(Gabor_zeroY EQ 1);%训练样本中背景的标签
+;  index_one=*(self.index_one);%训练样本中浮筏的标签
+;  index_zero=*(self.index_zero);%训练样本中背景的标签
   ;%稀疏表示分类器
   res=MAKE_ARRAY(1,2,VALUE=0,/DOUBLE);
   PredictY=MAKE_ARRAY(1,gaborsize[2],VALUE=0,/DOUBLE);%预测标签
@@ -232,7 +240,7 @@ PRO raftrecognize::superclassfy
   *(self.CONDATA) = self.vectortoimage(icol,irow,PredictY,winsize);%预测标签向量变为矩阵，并上采样
   cdata = *(self.CONDATA)
   ;self.cimage.SETPROPERTY, hide =0,data = bytscl(cdata)
-  self.oimage.SETPROPERTY,data = bytscl(cdata)
+  self.oimage.SETPROPERTY,data = BYTSCL(cdata)
   self.OWINDOW.draw
 END
 ;******************************************************************************
@@ -241,7 +249,7 @@ END
 PRO raftrecognize::filterPlaque
   *(self.CONDATA) = DOUBLE(self.bwareaopen(*(self.CONDATA)));
   cdata = *(self.CONDATA)
-  self.cimage.SETPROPERTY, hide =0,data = bytscl(cdata)
+  self.cimage.SETPROPERTY, hide =0,data = BYTSCL(cdata)
   self.oimage.SETPROPERTY, hide =1
   self.OWINDOW.draw
 END
@@ -255,7 +263,7 @@ PRO raftrecognize::DILATEERODE
   fg_erode = ERODE(fg_dilate,SE1);%腐蚀
   *(self.CONDATA) = fg_erode[8:self.imageDims[0]+7,8:self.imageDims[1]+7]
   cdata = *(self.CONDATA)
-  self.cimage.SETPROPERTY, hide =0,data = bytscl(cdata)
+  self.cimage.SETPROPERTY, hide =0,data = BYTSCL(cdata)
   self.oimage.SETPROPERTY, hide =1
   self.OWINDOW.draw
   ;map2 = DOUBLE(fg_erode[8:irow+7,8:irow+7]);%最终分类结果
@@ -392,15 +400,15 @@ FUNCTION raftrecognize::gaborFeatures,img,gaborArray,d1,d2
 
   FOR i = 0,u-1 DO BEGIN
     FOR j = 0,v-1 DO BEGIN
-      *(gaborResult[i,j]) = CONVol(dimg,*(gaborArray[i,j]),/EDGE_TRUNCATE);
-;      a = *(gaborArray[i,j])
-;      gabor1 = convol_fft(real_part(dimg),real_part(*(gaborArray[i,j])))
-;      gabor2 = convol_fft(real_part(dimg),IMAGINARY(*(gaborArray[i,j])))
-;      gabor3 = convol_fft(IMAGINARY(dimg),IMAGINARY(*(gaborArray[i,j])))
-;      gabor4 = convol_fft(IMAGINARY(dimg),real_part(*(gaborArray[i,j])))
-;      gaborReal = gabor1 - gabor3
-;      gaborIm = gabor2 + gabor4
-;      *(gaborResult[i,j]) = DCOMPLEX(gaborReal,gaborIm)
+      *(gaborResult[i,j]) = CONVOL(dimg,*(gaborArray[i,j]),/EDGE_TRUNCATE);
+      ;      a = *(gaborArray[i,j])
+      ;      gabor1 = convol_fft(real_part(dimg),real_part(*(gaborArray[i,j])))
+      ;      gabor2 = convol_fft(real_part(dimg),IMAGINARY(*(gaborArray[i,j])))
+      ;      gabor3 = convol_fft(IMAGINARY(dimg),IMAGINARY(*(gaborArray[i,j])))
+      ;      gabor4 = convol_fft(IMAGINARY(dimg),real_part(*(gaborArray[i,j])))
+      ;      gaborReal = gabor1 - gabor3
+      ;      gaborIm = gabor2 + gabor4
+      ;      *(gaborResult[i,j]) = DCOMPLEX(gaborReal,gaborIm)
       ;print,"conv2"+1
       ; J{u,v} = filter2(G{u,v},I);
     ENDFOR
@@ -738,14 +746,14 @@ PRO raftrecognize::raster_to_vector
   ENVI,/restore_base_save_files
   ENVI_BATCH_INIT
   self.tmpfile = DIALOG_PICKFILE(FILE=self.rbasename+'_tmp.tif',title='Save temporary TIFF')
-  if strcmp(self.tmpfile,'') eq 1 then begin
-  ENVI_BATCH_EXIT
-  RETURN
-  endif
+  IF STRCMP(self.tmpfile,'') EQ 1 THEN BEGIN
+    ENVI_BATCH_EXIT
+    RETURN
+  ENDIF
   self.filedir = FILE_DIRNAME(self.tmpfile)
   cdata = *(self.conData)
   ;WRITE_TIFF,self.tmpfile,bytscl(cdata),GEOTIFF=GeoKeys
-  WRITE_TIFF,self.tmpfile,bytscl(cdata),GEOTIFF=GeoKeys
+  WRITE_TIFF,self.tmpfile,BYTSCL(cdata),GEOTIFF=GeoKeys
   ;originImg=READ_TIFF(self.infile,R, G, B,GEOTIFF=GeoKeys,INTERLEAVE = 0)
   ;打开图像文件  ;
   ENVI_OPEN_FILE, self.tmpfile, r_fid=fid
@@ -812,7 +820,7 @@ PRO raftrecognize::dataInitial
   ;self.oContour.SETPROPERTY,hide = 1,data = sampleArray
   self.OWINDOW.Draw
 END
-pro raftrecognize::sample_polygon
+PRO raftrecognize::sample_polygon
   vert = *(self.sampleData)
   sz = SIZE(vert)
   PRINT,sz[1]
@@ -828,7 +836,7 @@ pro raftrecognize::sample_polygon
   self.sampleData = PTR_NEW(sampleArray,/no_Copy)
   self.sampleLINE.SETPROPERTY,hide = 1
   self.OWINDOW.draw
-end
+END
 ;todo初始化海岸线栅格化(polyline to contour)
 PRO raftrecognize::dataRasterlize
   self.oimage.GETPROPERTY, DIMENSIONS = dim
@@ -837,51 +845,59 @@ PRO raftrecognize::dataRasterlize
   ;  initContour[b] = -2
   ;  initContour[b_c] = 2
   groundall = DOUBLE(groundall)
-  B = WHERE(groundall eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
-;  groundall[b] = 1
-;  
-  WRITE_TIFF,"d:\test.tif",groundall
-  self.groundall = PTR_NEW(groundall)
-;  ind = ARRAY_INDICES(groundall, B)
-;  self.index_one = []
-;  for i = 0,N_ELEMENTS(b) do begin
-;    a = self.get_vertex(ind[0,i],ind[1,i],dim[0],dim[1])
-;    self.index_one = [self.index_one,a[2]]
-;  endfor
-;  self.index_one = self.index_one[UNIQ(self.index_one, SORT(self.index_one))]
-;  ground = *(self.groundall)
-END
-pro raftrecognize::get_index_one,ground = ground,index_one=index_one
-  ground = *(self.groundall)
+  B = WHERE(groundall EQ 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+  ;groundall[b] = 1
+  ;
   
-  B = WHERE(ground eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
-  ind = ARRAY_INDICES(ground, B)
-  index_one = [ ]
-  FOR i = 0,N_ELEMENTS(b)-1 DO BEGIN
-    a = self.get_vertex(ind[0,i],ind[1,i],self.imageDims[0],self.imageDims[1])
-    index_one = [index_one,a[2]]
-  ENDFOR
-  index_one = index_one[UNIQ(index_one, SORT(index_one))]
-  self.index_one = PTR_NEW(index_one,/no_Copy)
+  self.groundall = PTR_NEW(groundall)
+  ;  ind = ARRAY_INDICES(groundall, B)
+  ;  self.index_one = []
+  ;  for i = 0,N_ELEMENTS(b) do begin
+  ;    a = self.get_vertex(ind[0,i],ind[1,i],dim[0],dim[1])
+  ;    self.index_one = [self.index_one,a[2]]
+  ;  endfor
+  ;  self.index_one = self.index_one[UNIQ(self.index_one, SORT(self.index_one))]
+  ;  ground = *(self.groundall)
+END
+PRO raftrecognize::get_index_one,ground = ground,a=a
+  groundall = *(self.groundall)
+  ;groundall = transpose(rotate(groundall,1))
+  WRITE_TIFF,"d:\test_one.tif",groundall
+  B = WHERE(groundall EQ 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+  groundall[b] = 1
+;  ind = ARRAY_INDICES(groundall, B)
+;  index_one = [ ]
+;  FOR i = 0,N_ELEMENTS(b)-1 DO BEGIN
+;    a = self.get_vertex(ind[0,i],ind[1,i],self.imageDims[0],self.imageDims[1])
+;    index_one = [index_one,a[2]]
+;  ENDFOR
+;  index_one = index_one[UNIQ(index_one, SORT(index_one))]
+;  a = index_one
+  self.index_one = PTR_NEW(groundall,/no_Copy)
   self.roi_group = OBJ_NEW("IDLanROIGroup")
-end
+END
 PRO raftrecognize::get_index_zero
   groundall = *(self.groundall)
-  B = WHERE(groundall eq 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
-  ind = ARRAY_INDICES(groundall, B)
-  index_zero = [ ]
-  FOR i = 0,N_ELEMENTS(b)-1 DO BEGIN
-    a = self.get_vertex(ind[0,i],ind[1,i],self.imageDims[0],self.imageDims[1])
-    index_zero = [index_zero,a[2]]
-  ENDFOR
-  index_zero = index_zero[UNIQ(index_zero, SORT(index_zero))]
-  self.index_zero = PTR_NEW(index_zero,/no_Copy)
+  ;groundall = transpose(rotate(groundall,1))
+  WRITE_TIFF,"d:\test_zero.tif",groundall
+  B = WHERE(groundall EQ 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+  groundall[b] = 1
+;  B = WHERE(groundall EQ 255, count, COMPLEMENT=B_C, NCOMPLEMENT=count_c)
+;  ind = ARRAY_INDICES(groundall, B)
+;  index_zero = [ ]
+;  FOR i = 0,N_ELEMENTS(b)-1 DO BEGIN
+;    a = self.get_vertex(ind[0,i],ind[1,i],self.imageDims[0],self.imageDims[1])
+;    index_zero = [index_zero,a[2]]
+;  ENDFOR
+;  index_zero = index_zero[UNIQ(index_zero, SORT(index_zero))]
+
+  self.index_zero = PTR_NEW(groundall,/no_Copy)
 END
 ;获取采样区域索引
 FUNCTION raftrecognize::get_vertex,x,y,n,m
   cx = (x/3)*3
   cy = (y/3)*3
-  index = (x/3)*(m/3)+(y/3)
+  index = FLOOR(DOUBLE(x)/3)*FLOOR(DOUBLE(n)/3)+FLOOR(DOUBLE(y)/3)
   RETURN,[cx,cy,index]
 END
 ;******************************************************************
@@ -967,17 +983,17 @@ PRO raftrecognize::MousePress,xpos,ypos
     END
     ;画折线
     4: BEGIN
-       realCoord = self.CalRealCoord(self.MOUSELOC[0:1])
+      realCoord = self.CalRealCoord(self.MOUSELOC[0:1])
       *(self.sampleData) = [*(self.sampleData),realCoord]
       data = *(self.sampleData)
       sz = SIZE(data)
       PRINT,sz[1]
       row = sz[1]/2
       data=REFORM(data,[2,row])
-      
+
       self.sampleLINE.SETPROPERTY, data = data,hide = 0
       self.OWINDOW.Draw
-      end
+    END
     ELSE:
   ENDCASE
 END
@@ -1042,11 +1058,11 @@ PRO raftrecognize::MouseRelease,xpos,ypos
 
     END
     ;画折线
-;    4: BEGIN
-;      data = self.CALRECTPOINTS(self.MOUSELOC,curLoc)
-;      self.INITLINE.SETPROPERTY, data = data
-;      self.OWINDOW.Draw
-;    END
+    ;    4: BEGIN
+    ;      data = self.CALRECTPOINTS(self.MOUSELOC,curLoc)
+    ;      self.INITLINE.SETPROPERTY, data = data
+    ;      self.OWINDOW.Draw
+    ;    END
     ELSE:
   ENDCASE
 
@@ -1184,10 +1200,10 @@ FUNCTION raftrecognize::INIT,infile,drawID
   self.filetype = FILEEXTRACT[1]
   self.rbasename = FILE_BASENAME(self.infile, '.'+self.filetype)
   labeldata = []
-  self.groundall = ptr_new(labeldata,/n)
+  self.groundall = PTR_NEW(labeldata,/n)
   ;传入的drawID
-    WIDGET_CONTROL, drawID,GET_VALUE = oWindow
-    self.OWINDOW = oWindow
+  WIDGET_CONTROL, drawID,GET_VALUE = oWindow
+  self.OWINDOW = oWindow
   ;self.OWINDOW = OBJ_NEW("IDLgrWindow")
   ;调用CreateImage方法创建显示图像
   self.CREATEDRAWIMAGE
