@@ -205,15 +205,15 @@ PRO raftrecognize::superclassfy
   gaborsize = SIZE(GaborY)
   PRINT,gaborsize[2]
 ;  rand=FIX(gaborsize[2]*RANDOMU(seed,gaborsize[2]));%产生随机数
-;  trainingnum=CEIL(gaborsize[2]*0.3);  %取30%的点
+;  trainingnum=CEIL(gaborsize[2]*0.9);  %取30%的点
 ;  index=rand[0:trainingnum-1];%训练样本的对应的序号
   index_one=WHERE(Gabor_oneY EQ 1);%训练样本中浮筏的标签
   index_zero=WHERE(Gabor_zeroY EQ 1);%训练样本中背景的标签
   index = [index_one,index_zero]
   TrainX=TestX[index,*];%选取训练样本的特征
   TrainY=GaborY[*,index];%选取训练样本的标签
-  index_one=WHERE(Gabor_oneY EQ 1);%训练样本中浮筏的标签
-  index_zero=WHERE(Gabor_zeroY EQ 1);%训练样本中背景的标签
+  index_one=WHERE(TrainY EQ 1);%训练样本中浮筏的标签
+  index_zero=WHERE(TrainY EQ 0);%训练样本中背景的标签
 ;  index_one=*(self.index_one);%训练样本中浮筏的标签
 ;  index_zero=*(self.index_zero);%训练样本中背景的标签
   ;%稀疏表示分类器
