@@ -982,7 +982,7 @@ PRO raftrecognize::MousePress,xpos,ypos
       self.ORECT.SETPROPERTY, hide =0,data = data
     END
     ;画折线
-    4: BEGIN
+    5: BEGIN
       realCoord = self.CalRealCoord(self.MOUSELOC[0:1])
       *(self.sampleData) = [*(self.sampleData),realCoord]
       data = *(self.sampleData)
